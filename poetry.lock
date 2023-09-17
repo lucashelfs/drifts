@@ -3429,18 +3429,18 @@ files = [
 
 [[package]]
 name = "schemdraw"
-version = "0.17"
+version = "0.15"
 description = "Electrical circuit schematic drawing"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.7"
 files = [
-    {file = "schemdraw-0.17-py3-none-any.whl", hash = "sha256:08468b4d16c6ef6a85c6979a754cb3b528a82f43cc531819158c47e65612e619"},
-    {file = "schemdraw-0.17.tar.gz", hash = "sha256:ef35a3f45d5d280abc1fc547eb2551cde16cde54cd5725aaf97f0c76dadb3385"},
+    {file = "schemdraw-0.15-py3-none-any.whl", hash = "sha256:b335ff576002d287a43701b8bc325460dbdf2d5c3522ad1894877d0e44280343"},
+    {file = "schemdraw-0.15.tar.gz", hash = "sha256:9a59a43b12fc168cc4c681017f4647f01376c9b5abf1e814ae61b7cde208f070"},
 ]
 
 [package.extras]
-matplotlib = ["matplotlib (>=3.4)"]
-svgmath = ["latex2mathml", "ziafont (>=0.6)", "ziamath (>=0.8.1)"]
+matplotlib = ["matplotlib (>=3)"]
+svgmath = ["latex2mathml", "ziafont (>=0.4)", "ziamath (>=0.6)"]
 
 [[package]]
 name = "scikit-base"
@@ -4403,4 +4403,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "cc1aa8c61fca66e6921bc2fd46a2fd3eb0fda3fbdfedb7f432f02f5d0607fb16"
+content-hash = "26497aa7050b34b91f3d03a521ed33ee0f4ae5dd310ae539a89ae8ca2eb96486"
