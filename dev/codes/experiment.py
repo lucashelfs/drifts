@@ -147,7 +147,7 @@ class Experiment:
     def set_attr_cols(self):
         """Set the atribute columns for the experiment."""
         self.attr_cols = [
-            col for col in self.df_baseline.columns if col.startswith("Attr")
+            col for col in self.df_baseline.columns if col.startswith("Att")
         ]
 
     def async_test_for_multiple_attrs(self):
@@ -176,7 +176,7 @@ class Experiment:
         dataset_results = pd.concat(results)
         dataset_results.to_csv(self.dataset_prefix + ".csv", index=None)
 
-    def run_test(self):
+    def run_insects_test(self):
         """Experiment logic run."""
         self.load_insects_dataframe()
         self.fetch_classes_and_minimal_class()
