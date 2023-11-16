@@ -17,7 +17,11 @@ class Experiment:
     metadata = {}
 
     def __init__(
-        self, dataset: str, train_percentage: int = 0.25, DEBUG_SIZE=None
+        self,
+        dataset: str,
+        train_percentage: int = 0.25,
+        DEBUG_SIZE=None,
+        test_type="ks",  # use this trouhgout the code...
     ) -> None:
         self.dataset = dataset
         self.train_percentage = train_percentage
@@ -28,9 +32,12 @@ class Experiment:
         self.metadata["dataset"] = dataset
         self.metadata["execution_time"] = ({},)
         self.metadata["pools"] = self.NUMBER_OF_POOLS
+        # should save the kind of test on the metadata and store that info on the file name
 
         if DEBUG_SIZE:
             self.metadata["debug_size"] = DEBUG_SIZE
+        else:
+            self.DEBUG_SIZE = False
 
     def load_insects_dataframe(self):
         """Load dataframe from the insects datasets."""
@@ -73,6 +80,7 @@ class Experiment:
         print(f"DF Total: {self.total_df.shape}")
         print(f"DF baseline: {self.df_baseline.shape}")
         print(f"DF stream: {self.df_stream.shape}")
+        print(f"Minimal class: {self.minimal_class}")
 
     def write_metadata(self):
         """Write the dict with experiment metadata on a json file."""
@@ -82,7 +90,7 @@ class Experiment:
         return
 
     def mp_window_test(
-        start_idx, df_baseline, df_stream, attr, window_size, test="ks"
+        self, start_idx, df_baseline, df_stream, attr, window_size, test="ks"
     ) -> dict:
         """Apply KS test on a window, to be used inside a multiprocessing pool.
         ref: https://stackoverflow.com/questions/63096168/how-to-apply-multiprocessing-to-a-sliding-window
@@ -154,7 +162,7 @@ class Experiment:
         """Test multiple attrs with a multithread approach."""
         results = []
 
-        for attr in self.attr_columns:
+        for attr in self.attr_cols:
             print(f"Testing for attr: {attr}")
             attr_start_time = time.time()
             attr_results = self.async_test(
@@ -165,7 +173,7 @@ class Experiment:
             )
             attr_end_time = time.time()
             elapsed_attr_time = attr_end_time - attr_start_time
-            self.metadata["execution_time"][attr] = elapsed_attr_time
+            self.metadata["execution_time"][0][attr] = elapsed_attr_time
             results.append(attr_results)
 
         self.metadata["Window size"] = self.window_size
