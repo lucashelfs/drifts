@@ -9,7 +9,6 @@ from usp_stream_datasets import load_insect_dataset, insects_datasets
 
 
 class Experiment:
-
     results_folder = "classy_results/"
     NUMBER_OF_POOLS = 8
 
@@ -41,9 +40,7 @@ class Experiment:
 
     def load_insects_dataframe(self):
         """Load dataframe from the insects datasets."""
-        self.total_df = load_insect_dataset(
-            insects_datasets[self.dataset]["filename"]
-        )
+        self.total_df = load_insect_dataset(insects_datasets[self.dataset]["filename"])
 
     def fetch_classes_and_minimal_class(self):
         """Fetch classes available on the dataset and set the minimum size
@@ -59,9 +56,7 @@ class Experiment:
     def create_baseline_dataframe(self):
         """Create a baseline dataframe for the experiment."""
         baseline_dfs = [
-            self.total_df[self.total_df["class"] == species].iloc[
-                : self.window_size,
-            ]
+            self.total_df[self.total_df["class"] == species].iloc[: self.window_size,]
             for species in self.classes
         ]
         self.df_baseline = pd.concat(baseline_dfs)
@@ -69,12 +64,8 @@ class Experiment:
     def create_stream_dataframe(self):
         """Create a stream dataframe for the experiment."""
         baseline_index = self.df_baseline.index.tolist()
-        self.df_stream = self.total_df.loc[
-            ~self.total_df.index.isin(baseline_index)
-        ]
-        self.df_stream = self.df_stream.rename_axis(
-            "original_index"
-        ).reset_index()
+        self.df_stream = self.total_df.loc[~self.total_df.index.isin(baseline_index)]
+        self.df_stream = self.df_stream.rename_axis("original_index").reset_index()
 
     def print_experiment_dfs(self):
         print(f"DF Total: {self.total_df.shape}")
@@ -184,13 +175,16 @@ class Experiment:
         dataset_results = pd.concat(results)
         dataset_results.to_csv(self.dataset_prefix + ".csv", index=None)
 
-    def run_insects_test(self):
-        """Experiment logic run."""
+    def prepare_insects_test(self):
+        """Prepare insects dfs."""
         self.load_insects_dataframe()
         self.fetch_classes_and_minimal_class()
         self.set_window_size()
         self.create_baseline_dataframe()
         self.create_stream_dataframe()
         self.set_attr_cols()
+
+    def run_insects_test(self):
+        """Experiment logic run."""
         self.print_experiment_dfs()
         self.async_test_for_multiple_attrs()
