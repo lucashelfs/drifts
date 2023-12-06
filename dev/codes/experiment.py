@@ -10,6 +10,11 @@ from usp_stream_datasets import load_insect_dataset, insects_datasets
 from config import RESULTS_FOLDER
 
 
+# The work below has an approach of data stream in individual new blocks and not in sequential windows
+# Wang, Zhixiong, and Wei Wang. "Concept drift detection based on Kolmogorov–Smirnov test.
+# "Artificial Intelligence in China: Proceedings of the International Conference on Artificial Intelligence in China. Springer Singapore, 2020.
+
+
 class Experiment:
     results_folder = RESULTS_FOLDER
     NUMBER_OF_POOLS = 8
