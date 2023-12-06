@@ -7,9 +7,11 @@ from scipy import stats
 from multiprocessing import Pool
 from usp_stream_datasets import load_insect_dataset, insects_datasets
 
+from config import RESULTS_FOLDER
+
 
 class Experiment:
-    results_folder = "classy_results/"
+    results_folder = RESULTS_FOLDER
     NUMBER_OF_POOLS = 8
 
     dataset_prefix = None
@@ -20,10 +22,13 @@ class Experiment:
         dataset: str,
         train_percentage: int = 0.25,
         DEBUG_SIZE=None,
-        test_type="ks",  # use this trouhgout the code...
+        test_type="ks",
+        stratified=False,
     ) -> None:
         self.dataset = dataset
+        self.test_type = test_type
         self.train_percentage = train_percentage
+        self.stratified = stratified
         self.dataset_prefix = self.results_folder + dataset.lower().replace(
             ".", ""
         ).replace("(", "").replace(")", "").replace(" ", "-")
@@ -31,7 +36,8 @@ class Experiment:
         self.metadata["dataset"] = dataset
         self.metadata["execution_time"] = ({},)
         self.metadata["pools"] = self.NUMBER_OF_POOLS
-        # should save the kind of test on the metadata and store that info on the file name
+        self.metadata["kind_of_test"] = self.test_type
+        self.metadata["stratified"] = str(self.stratified)
 
         if DEBUG_SIZE:
             self.metadata["debug_size"] = DEBUG_SIZE
@@ -40,7 +46,9 @@ class Experiment:
 
     def load_insects_dataframe(self):
         """Load dataframe from the insects datasets."""
-        self.total_df = load_insect_dataset(insects_datasets[self.dataset]["filename"])
+        self.total_df = load_insect_dataset(
+            insects_datasets[self.dataset]["filename"]
+        )
 
     def fetch_classes_and_minimal_class(self):
         """Fetch classes available on the dataset and set the minimum size
@@ -55,17 +63,29 @@ class Experiment:
 
     def create_baseline_dataframe(self):
         """Create a baseline dataframe for the experiment."""
-        baseline_dfs = [
-            self.total_df[self.total_df["class"] == species].iloc[: self.window_size,]
-            for species in self.classes
-        ]
-        self.df_baseline = pd.concat(baseline_dfs)
+        if not self.stratified:
+            baseline_dfs = [
+                self.total_df[self.total_df["class"] == species].iloc[
+                    : self.window_size,
+                ]
+                for species in self.classes
+            ]
+            self.df_baseline = pd.concat(baseline_dfs)
+            self.df_baseline = self.df_baseline.rename_axis(
+                "original_index"
+            ).reset_index()
+        else:
+            Exception("Stratified baseline not implemented.")
 
     def create_stream_dataframe(self):
         """Create a stream dataframe for the experiment."""
         baseline_index = self.df_baseline.index.tolist()
-        self.df_stream = self.total_df.loc[~self.total_df.index.isin(baseline_index)]
-        self.df_stream = self.df_stream.rename_axis("original_index").reset_index()
+        self.df_stream = self.total_df.loc[
+            ~self.total_df.index.isin(baseline_index)
+        ]
+        self.df_stream = self.df_stream.rename_axis(
+            "original_index"
+        ).reset_index()
 
     def print_experiment_dfs(self):
         print(f"DF Total: {self.total_df.shape}")
@@ -96,6 +116,8 @@ class Experiment:
                 "attr": attr,
                 "start": start,
                 "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
                 "p_value": test_stat.pvalue,
             }
         else:
@@ -167,7 +189,7 @@ class Experiment:
             self.metadata["execution_time"][0][attr] = elapsed_attr_time
             results.append(attr_results)
 
-        self.metadata["Window size"] = self.window_size
+        self.metadata["Class size"] = self.window_size
         self.metadata["Baseline size"] = self.df_baseline.shape[0]
         self.metadata["Stream size"] = self.df_stream.shape[0]
         self.write_metadata()
