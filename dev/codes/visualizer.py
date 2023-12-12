@@ -12,14 +12,19 @@ from config import RESULTS_FOLDER
 sns.set(rc={"figure.figsize": (12, 6)})
 
 
+# TODO: implement a way of visualizing an experiment
+
+
 def fetch_change_points(dataset_name: str) -> list:
     """Fetch change point list for a requested Dataset."""
     return insects_datasets[dataset_name].get("change_point", [])
 
 
-def fetch_experiment_change_points(dataset_name: str) -> list:
+def fetch_experiment_change_points(
+    dataset_name: str, results_folder=RESULTS_FOLDER
+) -> list:
     """Fetch reindexed change points on baseline and stream datasets."""
-    exp = Experiment(dataset=dataset_name)
+    exp = Experiment(dataset=dataset_name, results_folder=results_folder)
     exp.prepare_insects_test()
     change_points = insects_datasets[dataset_name].get("change_point", [])
     cps = {"baseline": [], "stream": []}
@@ -117,12 +122,17 @@ def fetch_top_n_accepted_attributes(dataset_name, p_value, top_n=10):
 
 
 def plot_multiple_p_values(
-    dataset_name, p_value, top_n=10, index="end", save=False
+    dataset_name,
+    p_value,
+    top_n=10,
+    index="end",
+    save=False,
+    results_folder=RESULTS_FOLDER,
 ):
     """Given a dataset name and p_value, plot the results of the top 5
     most accepted attributes on that result dataframe."""
     csv_file, _, plot_file = generate_experiment_filenames(
-        dataset_name, results_folder=RESULTS_FOLDER
+        dataset_name, results_folder=results_folder
     )
     df_analysis = pd.read_csv(csv_file)
     df_analysis["action"] = np.where(
@@ -142,7 +152,9 @@ def plot_multiple_p_values(
     plt.title(title)
     g = sns.lineplot(x=index, y="p_value", hue="attr", data=df_plot)
     g.axhline(p_value, ls="--", c="red")
-    change_points = fetch_experiment_change_points(dataset_name)
+    change_points = fetch_experiment_change_points(
+        dataset_name, results_folder=results_folder
+    )
     stream_change_points = change_points["stream"]
     if stream_change_points:
         for change_point in stream_change_points:
