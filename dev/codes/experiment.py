@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import json
 import time
 
@@ -10,13 +11,15 @@ from usp_stream_datasets import load_insect_dataset, insects_datasets
 from config import RESULTS_FOLDER
 
 
-# The work below has an approach of data stream in individual new blocks and not in sequential windows
-# Wang, Zhixiong, and Wei Wang. "Concept drift detection based on Kolmogorov–Smirnov test.
-# "Artificial Intelligence in China: Proceedings of the International Conference on Artificial Intelligence in China. Springer Singapore, 2020.
+# The work below has an approach of data stream in individual new blocks and
+# not in sequential windows.
+# Wang, Zhixiong, and Wei Wang.
+# "Concept drift detection based on Kolmogorov–Smirnov test.
+# "Artificial Intelligence in China: Proceedings of the International
+# Conference on Artificial Intelligence in China. Springer Singapore, 2020.
 
 
 class Experiment:
-    results_folder = RESULTS_FOLDER
     NUMBER_OF_POOLS = 8
 
     dataset_prefix = None
@@ -29,7 +32,19 @@ class Experiment:
         DEBUG_SIZE=None,
         test_type="ks",
         stratified=False,
+        batches=False,
+        results_folder=None,
     ) -> None:
+
+        # Handling better the results folder
+        if not results_folder:
+            self.results_folder = RESULTS_FOLDER
+        else:
+            self.results_folder = results_folder
+
+        self.set_result_directory()
+
+        self.batches = batches
         self.dataset = dataset
         self.test_type = test_type
         self.train_percentage = train_percentage
@@ -48,6 +63,14 @@ class Experiment:
             self.metadata["debug_size"] = DEBUG_SIZE
         else:
             self.DEBUG_SIZE = False
+
+    def set_result_directory(self):
+        """Set the results directory if it does not exist."""
+        if not os.path.exists(self.results_folder):
+            os.makedirs(self.results_folder)
+            print(f"Created directory: {self.results_folder}")
+        else:
+            print(f"The directory exists! {self.results_folder}")
 
     def load_insects_dataframe(self):
         """Load dataframe from the insects datasets."""
@@ -133,6 +156,7 @@ class Experiment:
         df_baseline: pd.DataFrame,
         df_stream: pd.DataFrame,
         attr: str,
+        batches=False,
         DEBUG_SIZE=None,
     ) -> pd.DataFrame:
         """Create a pool and execute the test on a range of windows
@@ -151,9 +175,17 @@ class Experiment:
         """
         NUM_EL = len(df_stream[attr])
         WINDOW_SIZE = len(df_baseline[attr])
-        STARTS = list(range(NUM_EL - WINDOW_SIZE - 1))
+
+        if not batches:
+            STARTS = list(range(NUM_EL - WINDOW_SIZE - 1))
+        else:
+            STARTS = list(range(0, NUM_EL - WINDOW_SIZE - 1, WINDOW_SIZE))
+
         if DEBUG_SIZE:
-            STARTS = list(range(DEBUG_SIZE))
+            if not batches:
+                STARTS = list(range(DEBUG_SIZE))
+            else:
+                STARTS = list(range(0, DEBUG_SIZE, WINDOW_SIZE))
 
         with Pool(self.NUMBER_OF_POOLS) as p:
             result_multi = p.starmap(
@@ -188,6 +220,7 @@ class Experiment:
                 self.df_stream,
                 attr,
                 DEBUG_SIZE=self.DEBUG_SIZE,
+                batches=self.batches,
             )
             attr_end_time = time.time()
             elapsed_attr_time = attr_end_time - attr_start_time
