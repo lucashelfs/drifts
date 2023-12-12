@@ -84,7 +84,9 @@ def plot_original_data(dataset_name: str, species: str = "", attr: str = ""):
         print(f"The available Attrs are: {df.columns.tolist()}")
         return
     plt.clf()
-    title = f"Original distribution - {species} - {dataset_name} dataset"
+    title = (
+        f"Original distribution - {species} - {dataset_name} dataset - {attr}"
+    )
     plt.title(title)
     g = sns.lineplot(
         x=df.index,
