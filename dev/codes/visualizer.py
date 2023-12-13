@@ -131,6 +131,7 @@ def plot_multiple_p_values(
 ):
     """Given a dataset name and p_value, plot the results of the top 5
     most accepted attributes on that result dataframe."""
+
     csv_file, _, plot_file = generate_experiment_filenames(
         dataset_name, results_folder=results_folder
     )
@@ -147,6 +148,13 @@ def plot_multiple_p_values(
     df_plot = df_analysis[(df_analysis["attr"].isin(attr_list))][
         ["p_value", "attr", "start", "end"]
     ]
+
+    if df_plot.empty:
+        print(
+            "The dataframe for plotting is empty! The full analysis will be plotted."
+        )
+        df_plot = df_analysis
+
     plt.clf()
     title = f"p-values for {dataset_name} dataset indexed by {index}"
     plt.title(title)
