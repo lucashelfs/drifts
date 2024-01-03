@@ -7,6 +7,7 @@
 # https://ieeexplore.ieee.org/document/4035959
 
 import numpy as np
+from scipy.stats import gaussian_kde
 
 
 def KLdivergence(x: np.ndarray, y: np.ndarray) -> np.float64:
@@ -57,3 +58,35 @@ def KLdivergence(x: np.ndarray, y: np.ndarray) -> np.float64:
     # There is a mistake in the paper. In Eq. 14, the right side misses a
     # negative sign on the first term of the right hand side.
     return -np.log(r / s).sum() * d / n + np.log(m / (n - 1.0))
+
+
+def kl_divergence(p, q) -> np.float64:
+    # Ensure p and q are non-negative and not zero
+    p = np.maximum(p, np.finfo(float).eps)
+    q = np.maximum(q, np.finfo(float).eps)
+
+    return np.sum(p * np.log(p / q))
+
+
+def calculate_kl_divergence(samples_p, samples_q) -> np.float64:
+    # Compute KDE (Kernel Density Estimation) for both samples
+    kde_p = gaussian_kde(samples_p)
+    kde_q = gaussian_kde(samples_q)
+
+    # Create a range for evaluation (considering the union of both sets of samples)
+    min_val = min(np.min(samples_p), np.min(samples_q))
+    max_val = max(np.max(samples_p), np.max(samples_q))
+    x_eval = np.linspace(min_val, max_val, 1000)  # maybe this could be bigger...
+
+    # Evaluate the KDEs on the range
+    p = kde_p.evaluate(x_eval)
+    q = kde_q.evaluate(x_eval)
+
+    # Normalize the densities to ensure they sum up to 1
+    p = p / np.sum(p)
+    q = q / np.sum(q)
+
+    # Compute KL divergence
+    kl_div = kl_divergence(p, q)
+
+    return kl_div

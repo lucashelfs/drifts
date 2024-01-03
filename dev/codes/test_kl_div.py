@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 from experiment import Experiment
-from kl import KLdivergence
+from kl import KLdivergence, calculate_kl_divergence
 
 # np.random.seed(42)
 
@@ -28,20 +28,26 @@ exp = Experiment(
 
 exp.prepare_insects_test()
 
+
+## Teste com stream e baseline diferentes
 attr = "Att1"
 start = 0
 end = (
     start + exp.df_baseline.shape[0]
-)  # incoerente com o outro teste que fazemos
+)  # essa parte é incoerente com o outro teste que fazemos
 
 baseline = exp.df_baseline[attr]
 stream = exp.df_stream[attr][start:end]
 
+kl1 = calculate_kl_divergence(baseline, stream)
 
-KLdivergence(baseline, stream)
 
+## Teste com o mesmo tamanho original do teste do experimento
+attr = "Att1"
+start = 0
+end = start + exp.window_size
 
-# from scipy.spatial import cKDTree as KDTree
+baseline = exp.df_baseline[attr]
+stream = exp.df_stream[attr][start:end]
 
-# np.atleast_2d(baseline)
-# KDTree(np.atleast_2d(baseline))
+kl2 = calculate_kl_divergence(baseline, stream)
