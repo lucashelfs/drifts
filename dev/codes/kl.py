@@ -36,7 +36,7 @@ def KLdivergence(x: np.ndarray, y: np.ndarray) -> np.float64:
     """
     from scipy.spatial import cKDTree as KDTree
 
-    # Check the dimensions are consistent - isue is here!!
+    # Check the dimensions are consistent - issue is here!!
     x = np.atleast_2d(x)
     y = np.atleast_2d(y)
 
@@ -57,6 +57,9 @@ def KLdivergence(x: np.ndarray, y: np.ndarray) -> np.float64:
 
     # There is a mistake in the paper. In Eq. 14, the right side misses a
     # negative sign on the first term of the right hand side.
+    print("N of KLDivergence:", n)
+    print("r of KLDivergence:", r)
+    print("s of KLDivergence:", s)
     return -np.log(r / s).sum() * d / n + np.log(m / (n - 1.0))
 
 
@@ -68,7 +71,9 @@ def kl_divergence(p, q) -> np.float64:
     return np.sum(p * np.log(p / q))
 
 
-def calculate_kl_divergence(samples_p, samples_q) -> np.float64:
+def calculate_kl_divergence_with_kde(
+    samples_p, samples_q, bigger=False
+) -> np.float64:
     # Compute KDE (Kernel Density Estimation) for both samples
     kde_p = gaussian_kde(samples_p)
     kde_q = gaussian_kde(samples_q)
@@ -76,7 +81,13 @@ def calculate_kl_divergence(samples_p, samples_q) -> np.float64:
     # Create a range for evaluation (considering the union of both sets of samples)
     min_val = min(np.min(samples_p), np.min(samples_q))
     max_val = max(np.max(samples_p), np.max(samples_q))
-    x_eval = np.linspace(min_val, max_val, 1000)  # maybe this could be bigger...
+
+    # Maybe this could be bigger...
+    x_eval = np.linspace(min_val, max_val, 1000)
+    if bigger:
+        x_eval = np.linspace(
+            min_val, max_val, max(len(samples_p), len(samples_q))
+        )
 
     # Evaluate the KDEs on the range
     p = kde_p.evaluate(x_eval)
