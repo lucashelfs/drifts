@@ -12,7 +12,7 @@ from config import RESULTS_FOLDER
 sns.set(rc={"figure.figsize": (12, 6)})
 
 
-# TODO: implement a way of visualizing an experiment
+# TODO: implement a way of visualizing an experiment and DRY on the methods
 
 
 def fetch_change_points(dataset_name: str) -> list:
@@ -160,6 +160,47 @@ def plot_multiple_p_values(
     plt.title(title)
     g = sns.lineplot(x=index, y="p_value", hue="attr", data=df_plot)
     g.axhline(p_value, ls="--", c="red")
+    change_points = fetch_experiment_change_points(
+        dataset_name, results_folder=results_folder
+    )
+    stream_change_points = change_points["stream"]
+    if stream_change_points:
+        for change_point in stream_change_points:
+            g.axvline(change_point["reindexed"], ls="--", c="yellow")
+    if save:
+        plt.savefig(plot_file)
+    plt.show()
+
+
+def plot_kl_values(
+    dataset_name,
+    attr="Att27",
+    index="end",
+    save=False,
+    results_folder=RESULTS_FOLDER,
+):
+    """Given a dataset name and attribute, plot the results of the distances
+    on that result dataframe."""
+
+    csv_file, _, plot_file = generate_experiment_filenames(
+        dataset_name, results_folder=results_folder
+    )
+    df_analysis = pd.read_csv(csv_file)
+    attr_list = [attr]
+    df_plot = df_analysis[(df_analysis["attr"].isin(attr_list))][
+        ["distance", "attr", "start", "end"]
+    ]
+
+    if df_plot.empty:
+        print(
+            "The dataframe for plotting is empty! The full analysis will be plotted."
+        )
+        df_plot = df_analysis
+
+    plt.clf()
+    title = f"Distance for {dataset_name} dataset indexed by {index} - {attr}"
+    plt.title(title)
+    g = sns.lineplot(x=index, y="distance", hue="attr", data=df_plot)
     change_points = fetch_experiment_change_points(
         dataset_name, results_folder=results_folder
     )
