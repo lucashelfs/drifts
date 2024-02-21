@@ -9,7 +9,10 @@ from multiprocessing import Pool
 from usp_stream_datasets import load_insect_dataset, insects_datasets
 
 from config import RESULTS_FOLDER
+from kl import calculate_kl_divergence_with_kde
+from binning import calculate_kl_with_dummy_bins, calculate_kl_with_median
 
+from tqdm import tqdm
 
 # The work below has an approach of data stream in individual new blocks and
 # not in sequential windows.
@@ -17,6 +20,30 @@ from config import RESULTS_FOLDER
 # "Concept drift detection based on Kolmogorov–Smirnov test.
 # "Artificial Intelligence in China: Proceedings of the International
 # Conference on Artificial Intelligence in China. Springer Singapore, 2020.
+
+import multiprocessing.pool as mpp
+
+
+def istarmap(self, func, iterable, chunksize=1):
+    """starmap-version of imap"""
+    self._check_running()
+    if chunksize < 1:
+        raise ValueError("Chunksize must be 1+, not {0:n}".format(chunksize))
+
+    task_batches = mpp.Pool._get_tasks(func, iterable, chunksize)
+    result = mpp.IMapIterator(self)
+    self._taskqueue.put(
+        (
+            self._guarded_task_generation(
+                result._job, mpp.starmapstar, task_batches
+            ),
+            result._set_length,
+        )
+    )
+    return (item for chunk in result for item in chunk)
+
+
+mpp.Pool.istarmap = istarmap
 
 
 class Experiment:
@@ -58,6 +85,7 @@ class Experiment:
         self.metadata["pools"] = self.NUMBER_OF_POOLS
         self.metadata["kind_of_test"] = self.test_type
         self.metadata["stratified"] = str(self.stratified)
+        self.metadata["batches"] = str(self.batches)
 
         if DEBUG_SIZE:
             self.metadata["debug_size"] = DEBUG_SIZE
@@ -129,16 +157,21 @@ class Experiment:
         return
 
     def mp_window_test(
-        self, start_idx, df_baseline, df_stream, attr, window_size, test="ks"
+        self,
+        start_idx: int,
+        df_baseline: pd.DataFrame,
+        df_stream: pd.DataFrame,
+        attr: str,
+        window_size: int,
     ) -> dict:
-        """Apply KS test on a window, to be used inside a multiprocessing pool.
+        """Apply test on a window, to be used inside a multiprocessing pool.
         ref: https://stackoverflow.com/questions/63096168/how-to-apply-multiprocessing-to-a-sliding-window
         """
         start = start_idx + 1
         end = start + window_size
         baseline = df_baseline[attr]
         stream = df_stream[attr][start:end]
-        if test == "ks":
+        if self.test_type == "ks":
             test_stat = stats.kstest(baseline, stream)
             return {
                 "attr": attr,
@@ -147,6 +180,28 @@ class Experiment:
                 "original_start": df_stream["original_index"][start],
                 "original_end": df_stream["original_index"][end],
                 "p_value": test_stat.pvalue,
+            }
+        elif self.test_type == "kl_median":
+            distance = calculate_kl_with_median(
+                baseline, stream, median_origin="both", n_bins=5
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        elif self.test_type == "kl_dummy":
+            distance = calculate_kl_with_dummy_bins(baseline, stream, n_bins=5)
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
             }
         else:
             Exception("Undefined test!")
@@ -190,12 +245,15 @@ class Experiment:
         with Pool(self.NUMBER_OF_POOLS) as p:
             result_multi = p.starmap(
                 self.mp_window_test,
-                zip(
-                    STARTS,
-                    repeat(df_baseline),
-                    repeat(df_stream),
-                    repeat(attr),
-                    repeat(WINDOW_SIZE),
+                tqdm(
+                    zip(
+                        STARTS,
+                        repeat(df_baseline),
+                        repeat(df_stream),
+                        repeat(attr),
+                        repeat(WINDOW_SIZE),
+                    ),
+                    total=len(STARTS),
                 ),
             )
 
