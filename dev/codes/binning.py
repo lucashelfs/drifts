@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.stats import entropy
 
 from scipy.spatial.distance import jensenshannon
@@ -75,38 +74,6 @@ def simple_binning(baseline, stream, n_bins=N_BINS):
     return normalized_counts_baseline, normalized_counts_stream
 
 
-def plot_binning(
-    baseline, stream, binning_type="dummy", median_origin=None, n_bins=N_BINS
-):
-
-    if binning_type == "dummy":
-        df_bins_baseline, df_bins_stream = dummy_binning(
-            baseline, stream, n_bins
-        )
-    elif binning_type == "median":
-        df_bins_baseline, df_bins_stream = median_binning(
-            baseline, stream, median_origin=median_origin, n_bins=n_bins
-        )
-
-    value_counts1 = df_bins_baseline.value_counts()[df_bins_baseline.unique()]
-    value_counts2 = df_bins_stream.value_counts()[df_bins_stream.unique()]
-
-    # Plot the value counts with different colors
-    ax = value_counts1.plot(
-        kind="bar", color="blue", position=0, width=0.4, label="Baseline"
-    )
-    value_counts2.plot(
-        kind="bar", color="orange", position=1, width=0.4, label="Stream", ax=ax
-    )
-
-    # Customize the plot
-    plt.xlabel("Bin intervals")
-    plt.ylabel("Count")
-    plt.title("Value Counts of Bins")
-    plt.legend()
-    plt.show()
-
-
 def calculate_kl_with_dummy_bins(baseline, stream, n_bins):
 
     normalized_baseline, normalized_stream = simple_binning(
@@ -143,9 +110,7 @@ def calculate_kl_with_median(baseline, stream, median_origin="both", n_bins=5):
     return kl_divergence
 
 
-##### JENSEN SHANNON
-
-
+# JENSEN SHANNON
 def calculate_js_with_dummy_bins(baseline, stream, n_bins):
     normalized_baseline, normalized_stream = simple_binning(
         baseline=baseline, stream=stream, n_bins=n_bins
