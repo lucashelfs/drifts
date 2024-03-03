@@ -4,15 +4,12 @@ from visualizer import plot_kl_values
 from binning_visualizer import plot_binning, create_binning_timeline
 
 
-# TEST IF IT IS WORKING FOR DUMMY TESTS>>>>
-
 dataset_name = "Incremental (bal.)"
 attr = "Att31"
-test_type = "kl_dummy"
+test_type = "js_median"
 binning_type = "median"
 median_origin = "both"
-bins = [5, 10, 25]
-
+bins = [10, 25]
 
 for n_bins in bins:
     results_folder = os.getcwd() + f"/results_of_{test_type}_{n_bins}_{attr}/"
@@ -31,7 +28,7 @@ for n_bins in bins:
     # Run experiment for single attr
     exp = Experiment(**config)
     exp.prepare_insects_test()
-    # exp.run_insects_test()
+    exp.run_insects_test()
     plot_kl_values(**config)
 
     # Generate GIF of stream binning
