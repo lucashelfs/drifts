@@ -7,12 +7,13 @@ from experiment import Experiment
 from usp_stream_datasets import insects_datasets
 from utils import fetch_original_dataframe, generate_experiment_filenames
 
-from config import RESULTS_FOLDER
+from config import DEFAULT_RESULTS_FOLDER
 
 sns.set(rc={"figure.figsize": (12, 6)})
 
 
 # TODO: implement a way of visualizing an experiment and DRY on the methods
+# TODO: transfer the binning visualizers to this file
 
 
 def fetch_change_points(dataset_name: str) -> list:
@@ -21,12 +22,12 @@ def fetch_change_points(dataset_name: str) -> list:
 
 
 def fetch_experiment_change_points(
-    dataset_name: str, results_folder=RESULTS_FOLDER
+    results_folder=DEFAULT_RESULTS_FOLDER, **kwargs
 ) -> list:
     """Fetch reindexed change points on baseline and stream datasets."""
-    exp = Experiment(dataset=dataset_name, results_folder=results_folder)
+    exp = Experiment(results_folder=results_folder, **kwargs)
     exp.prepare_insects_test()
-    change_points = insects_datasets[dataset_name].get("change_point", [])
+    change_points = insects_datasets[kwargs.get("dataset")].get("change_point", [])
     cps = {"baseline": [], "stream": []}
 
     # Fetch for stream
@@ -79,9 +80,7 @@ def plot_original_data(dataset_name: str, species: str = "", attr: str = ""):
         print("Please set the attribute to be displayed.")
         return
     if species:
-        df = original_dataframe[original_dataframe["class"] == species].iloc[
-            :,
-        ]
+        df = original_dataframe[original_dataframe["class"] == species].iloc[:,]
     else:
         df = original_dataframe
     if attr not in df.columns.tolist():
@@ -89,9 +88,7 @@ def plot_original_data(dataset_name: str, species: str = "", attr: str = ""):
         print(f"The available Attrs are: {df.columns.tolist()}")
         return
     plt.clf()
-    title = (
-        f"Original distribution - {species} - {dataset_name} dataset - {attr}"
-    )
+    title = f"Original distribution - {species} - {dataset_name} dataset - {attr}"
     plt.title(title)
     g = sns.lineplot(
         x=df.index,
@@ -106,7 +103,7 @@ def plot_original_data(dataset_name: str, species: str = "", attr: str = ""):
 def fetch_top_n_accepted_attributes(dataset_name, p_value, top_n=10):
     """Fetch top n accepted attributes."""
     csv_file, _, _ = generate_experiment_filenames(
-        dataset_name, results_folder=RESULTS_FOLDER
+        dataset_name, results_folder=DEFAULT_RESULTS_FOLDER
     )
     df_analysis = pd.read_csv(csv_file)
     df_analysis["action"] = np.where(
@@ -127,7 +124,7 @@ def plot_multiple_p_values(
     top_n=10,
     index="end",
     save=False,
-    results_folder=RESULTS_FOLDER,
+    results_folder=DEFAULT_RESULTS_FOLDER,
 ):
     """Given a dataset name and p_value, plot the results of the top 5
     most accepted attributes on that result dataframe."""
@@ -150,9 +147,7 @@ def plot_multiple_p_values(
     ]
 
     if df_plot.empty:
-        print(
-            "The dataframe for plotting is empty! The full analysis will be plotted."
-        )
+        print("The dataframe for plotting is empty! The full analysis will be plotted.")
         df_plot = df_analysis
 
     plt.clf()
@@ -177,13 +172,15 @@ def plot_kl_values(
     attr="Att27",
     index="end",
     save=False,
-    results_folder=RESULTS_FOLDER,
+    results_folder=DEFAULT_RESULTS_FOLDER,
+    **kwargs,
 ):
     """Given a dataset name and attribute, plot the results of the distances
     on that result dataframe."""
 
     csv_file, _, plot_file = generate_experiment_filenames(
-        dataset_name, results_folder=results_folder
+        dataset_name,
+        results_folder=results_folder,
     )
     df_analysis = pd.read_csv(csv_file)
     attr_list = [attr]
@@ -192,17 +189,21 @@ def plot_kl_values(
     ]
 
     if df_plot.empty:
-        print(
-            "The dataframe for plotting is empty! The full analysis will be plotted."
-        )
+        print("The dataframe for plotting is empty! The full analysis will be plotted.")
         df_plot = df_analysis
 
+    n_bins = kwargs.get("n_bins", False)
+
+    if not n_bins:
+        title = f"Distance for {dataset_name} dataset indexed by {index} - {attr}"
+    else:
+        title = f"Distance for {dataset_name} dataset indexed by {index} - {attr} - bins: {n_bins}"
+
     plt.clf()
-    title = f"Distance for {dataset_name} dataset indexed by {index} - {attr}"
     plt.title(title)
     g = sns.lineplot(x=index, y="distance", hue="attr", data=df_plot)
     change_points = fetch_experiment_change_points(
-        dataset_name, results_folder=results_folder
+        results_folder=results_folder, **kwargs
     )
     stream_change_points = change_points["stream"]
     if stream_change_points:
