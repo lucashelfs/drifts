@@ -8,9 +8,14 @@ from scipy import stats
 from multiprocessing import Pool
 from usp_stream_datasets import load_insect_dataset, insects_datasets
 
-from config import RESULTS_FOLDER
+from config import DEFAULT_RESULTS_FOLDER
 from kl import calculate_kl_divergence_with_kde
-from binning import calculate_kl_with_dummy_bins, calculate_kl_with_median
+from binning import (
+    calculate_kl_with_dummy_bins,
+    calculate_kl_with_median,
+    calculate_js_with_dummy_bins,
+    calculate_js_with_median,
+)
 
 from tqdm import tqdm
 
@@ -34,9 +39,7 @@ def istarmap(self, func, iterable, chunksize=1):
     result = mpp.IMapIterator(self)
     self._taskqueue.put(
         (
-            self._guarded_task_generation(
-                result._job, mpp.starmapstar, task_batches
-            ),
+            self._guarded_task_generation(result._job, mpp.starmapstar, task_batches),
             result._set_length,
         )
     )
@@ -44,6 +47,9 @@ def istarmap(self, func, iterable, chunksize=1):
 
 
 mpp.Pool.istarmap = istarmap
+
+
+TEST_TYPES = ["ks", "kl_dummy", "kl_median", "js_dummy", "js_median"]
 
 
 class Experiment:
@@ -57,40 +63,85 @@ class Experiment:
         dataset: str,
         train_percentage: int = 0.25,
         DEBUG_SIZE=None,
-        test_type="ks",
         stratified=False,
         batches=False,
         results_folder=None,
+        **kwargs,
     ) -> None:
+        self.debug_size = DEBUG_SIZE
 
         # Handling better the results folder
         if not results_folder:
-            self.results_folder = RESULTS_FOLDER
+            self.results_folder = DEFAULT_RESULTS_FOLDER
         else:
             self.results_folder = results_folder
 
         self.set_result_directory()
 
+        # TODO: develop synthetic data logic and handling inside the class
+        self.data_source = kwargs.get("data_source", False)
+        if not self.data_source:
+            raise ("The data source must be specified. Available: insects.")
+
+        # Fetch init data for the test type and its possible variables
+        self.test_type = kwargs.get("test_type", False)
+        if not self.test_type:
+            raise ("Invalid test type!")
+
+        # Check if test should be applied on one attribute
+        self.attr = kwargs.get("attr", False)
+        if self.attr:
+            self.validate_given_attr()
+
+        self.n_bins = kwargs.get("n_bins", False)  # validate the input with pydantic
+
+        # TODO: fetch the median origin from kwargs
+
+        if self.test_type not in TEST_TYPES:
+            raise ("Invalid test!")
+
+        # The other variables for the test are fetched here
+        if (
+            self.test_type.startswith("kl") or self.test_type.startswith("js")
+        ) and not self.n_bins:
+            raise ("Test is only available if n_bins is defined properly.")
+
+        # Define specific configuration of the test
         self.batches = batches
         self.dataset = dataset
-        self.test_type = test_type
         self.train_percentage = train_percentage
         self.stratified = stratified
-        self.dataset_prefix = self.results_folder + dataset.lower().replace(
+
+        # Set dataset prefix
+        self.set_dataset_prefix()
+
+        # Start the metadata structure
+        self.write_initial_metadata()
+
+    def set_dataset_prefix(self):
+        """Set the dataset prefix for filename."""
+        self.dataset_prefix = self.results_folder + self.dataset.lower().replace(
             ".", ""
         ).replace("(", "").replace(")", "").replace(" ", "-")
 
-        self.metadata["dataset"] = dataset
+    def validate_given_attr(self):
+        """Validate single attribute inputs."""
+        if self.test_type == "insects":
+            if not self.attr.startswith("Att"):
+                raise ("The given attribute doesn't match the insects DF pattern.")
+
+    def write_initial_metadata(self):
+        """Write experiment metadata on the data structure."""
+        self.metadata["dataset"] = self.dataset
         self.metadata["execution_time"] = ({},)
         self.metadata["pools"] = self.NUMBER_OF_POOLS
         self.metadata["kind_of_test"] = self.test_type
         self.metadata["stratified"] = str(self.stratified)
         self.metadata["batches"] = str(self.batches)
-
-        if DEBUG_SIZE:
-            self.metadata["debug_size"] = DEBUG_SIZE
+        if self.debug_size:
+            self.metadata["debug_size"] = self.debug_size
         else:
-            self.DEBUG_SIZE = False
+            self.debug_size = False
 
     def set_result_directory(self):
         """Set the results directory if it does not exist."""
@@ -102,9 +153,10 @@ class Experiment:
 
     def load_insects_dataframe(self):
         """Load dataframe from the insects datasets."""
-        self.total_df = load_insect_dataset(
-            insects_datasets[self.dataset]["filename"]
-        )
+        self.total_df = load_insect_dataset(insects_datasets[self.dataset]["filename"])
+
+        if self.attr:
+            self.total_df = self.total_df[[self.attr, "class"]]
 
     def fetch_classes_and_minimal_class(self):
         """Fetch classes available on the dataset and set the minimum size
@@ -136,12 +188,8 @@ class Experiment:
     def create_stream_dataframe(self):
         """Create a stream dataframe for the experiment."""
         baseline_index = self.df_baseline.index.tolist()
-        self.df_stream = self.total_df.loc[
-            ~self.total_df.index.isin(baseline_index)
-        ]
-        self.df_stream = self.df_stream.rename_axis(
-            "original_index"
-        ).reset_index()
+        self.df_stream = self.total_df.loc[~self.total_df.index.isin(baseline_index)]
+        self.df_stream = self.df_stream.rename_axis("original_index").reset_index()
 
     def print_experiment_dfs(self):
         print(f"DF Total: {self.total_df.shape}")
@@ -171,6 +219,7 @@ class Experiment:
         end = start + window_size
         baseline = df_baseline[attr]
         stream = df_stream[attr][start:end]
+
         if self.test_type == "ks":
             test_stat = stats.kstest(baseline, stream)
             return {
@@ -183,7 +232,7 @@ class Experiment:
             }
         elif self.test_type == "kl_median":
             distance = calculate_kl_with_median(
-                baseline, stream, median_origin="both", n_bins=5
+                baseline, stream, median_origin="both", n_bins=self.n_bins
             )
             return {
                 "attr": attr,
@@ -194,7 +243,33 @@ class Experiment:
                 "distance": distance,
             }
         elif self.test_type == "kl_dummy":
-            distance = calculate_kl_with_dummy_bins(baseline, stream, n_bins=5)
+            distance = calculate_kl_with_dummy_bins(
+                baseline, stream, n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        elif self.test_type == "js_median":
+            distance = calculate_js_with_median(
+                baseline, stream, median_origin="both", n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        elif self.test_type == "js_dummy":
+            distance = calculate_js_with_dummy_bins(
+                baseline, stream, n_bins=self.n_bins
+            )
             return {
                 "attr": attr,
                 "start": start,
@@ -212,7 +287,7 @@ class Experiment:
         df_stream: pd.DataFrame,
         attr: str,
         batches=False,
-        DEBUG_SIZE=None,
+        debug_size=None,
     ) -> pd.DataFrame:
         """Create a pool and execute the test on a range of windows
         on the stream dataframe.
@@ -236,11 +311,11 @@ class Experiment:
         else:
             STARTS = list(range(0, NUM_EL - WINDOW_SIZE - 1, WINDOW_SIZE))
 
-        if DEBUG_SIZE:
+        if debug_size:
             if not batches:
-                STARTS = list(range(DEBUG_SIZE))
+                STARTS = list(range(debug_size))
             else:
-                STARTS = list(range(0, DEBUG_SIZE, WINDOW_SIZE))
+                STARTS = list(range(0, debug_size, WINDOW_SIZE))
 
         with Pool(self.NUMBER_OF_POOLS) as p:
             result_multi = p.starmap(
@@ -262,22 +337,25 @@ class Experiment:
 
     def set_attr_cols(self):
         """Set the atribute columns for the experiment."""
-        self.attr_cols = [
-            col for col in self.df_baseline.columns if col.startswith("Att")
-        ]
+        if self.attr:
+            self.desired_cols = [self.attr]
+        else:
+            self.desired_cols = [
+                col for col in self.df_baseline.columns if col.startswith("Att")
+            ]
 
-    def async_test_for_multiple_attrs(self):
-        """Test multiple attrs with a multithread approach."""
+    def async_test_for_desired_attrs(self):
+        """Test for the desired attrs with a multithread approach."""
         results = []
 
-        for attr in self.attr_cols:
+        for attr in self.desired_cols:
             print(f"Testing for attr: {attr}")
             attr_start_time = time.time()
             attr_results = self.async_test(
                 self.df_baseline,
                 self.df_stream,
                 attr,
-                DEBUG_SIZE=self.DEBUG_SIZE,
+                debug_size=self.debug_size,
                 batches=self.batches,
             )
             attr_end_time = time.time()
@@ -294,15 +372,21 @@ class Experiment:
         dataset_results.to_csv(self.dataset_prefix + ".csv", index=None)
 
     def prepare_insects_test(self):
-        """Prepare insects dfs."""
-        self.load_insects_dataframe()
-        self.fetch_classes_and_minimal_class()
-        self.set_window_size()
-        self.create_baseline_dataframe()
-        self.create_stream_dataframe()
-        self.set_attr_cols()
+        """Prepare insects dataframes."""
+        if self.data_source == "insects":
+            self.load_insects_dataframe()
+            self.fetch_classes_and_minimal_class()
+            self.set_window_size()
+            self.create_baseline_dataframe()
+            self.create_stream_dataframe()
+            self.set_attr_cols()
+        else:
+            raise ("Method not available for the given data source.")
 
     def run_insects_test(self):
-        """Experiment logic run."""
-        self.print_experiment_dfs()
-        self.async_test_for_multiple_attrs()
+        """Logic for a run of the insect experiment."""
+        if self.data_source == "insects":
+            self.print_experiment_dfs()
+            self.async_test_for_desired_attrs()
+        else:
+            raise ("Method not available for the given data source.")
