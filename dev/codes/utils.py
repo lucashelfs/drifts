@@ -3,7 +3,8 @@ from usp_stream_datasets import load_insect_dataset, insects_datasets
 
 
 def generate_experiment_filenames(
-    dataset: str, results_folder: str = "results/"
+    dataset: str,
+    results_folder: str = "results/",
 ):
     """Generates experiment filenames."""
     dataset_prefix = results_folder + dataset.lower().replace(".", "").replace(
