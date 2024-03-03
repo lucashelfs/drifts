@@ -26,7 +26,7 @@ for n_bins in bins:
         test_type=test_type,
         n_bins=n_bins,
         binning_type=binning_type,
-        median_origin=median_origin
+        median_origin=median_origin,
     )
     # Run experiment for single attr
     exp = Experiment(**config)

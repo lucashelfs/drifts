@@ -34,9 +34,7 @@ baseline = exp.df_baseline[attr]
 stream = exp.df_stream[attr][start:end]
 
 
-plot_binning(
-    baseline, stream, binning_type="median", median_origin="both", n_bins=10
-)
+plot_binning(baseline, stream, binning_type="median", median_origin="both", n_bins=10)
 
 
 # Calculate KL divergence: dummy

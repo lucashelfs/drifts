@@ -71,9 +71,7 @@ def kl_divergence(p, q) -> np.float64:
     return np.sum(p * np.log(p / q))
 
 
-def calculate_kl_divergence_with_kde(
-    samples_p, samples_q, bigger=False
-) -> np.float64:
+def calculate_kl_divergence_with_kde(samples_p, samples_q, bigger=False) -> np.float64:
     # Compute KDE (Kernel Density Estimation) for both samples
     kde_p = gaussian_kde(samples_p)
     kde_q = gaussian_kde(samples_q)
@@ -85,9 +83,7 @@ def calculate_kl_divergence_with_kde(
     # Maybe this could be bigger...
     x_eval = np.linspace(min_val, max_val, 1000)
     if bigger:
-        x_eval = np.linspace(
-            min_val, max_val, max(len(samples_p), len(samples_q))
-        )
+        x_eval = np.linspace(min_val, max_val, max(len(samples_p), len(samples_q)))
 
     # Evaluate the KDEs on the range
     p = kde_p.evaluate(x_eval)

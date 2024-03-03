@@ -21,7 +21,6 @@ def dummy_binning(baseline, stream, bins=N_BINS):
 def median_binning(
     baseline, stream, median_origin: str = "baseline", n_bins: int = N_BINS
 ):
-
     min_value = min(baseline.min(), stream.min())
     max_value = max(baseline.max(), stream.max())
 
@@ -50,7 +49,6 @@ def median_binning(
 
 
 def simple_binning(baseline, stream, n_bins=N_BINS):
-
     df_bins_baseline, df_bins_stream = dummy_binning(baseline, stream, n_bins)
     frequencies_baseline = df_bins_baseline.value_counts(normalize=True)[
         df_bins_baseline.unique()
@@ -61,21 +59,16 @@ def simple_binning(baseline, stream, n_bins=N_BINS):
 
     # Ensure both series have the same index to align them properly
     # -> this is always true because of the linspace...
-    all_categories = set(frequencies_baseline.index).union(
-        frequencies_stream.index
-    )
+    all_categories = set(frequencies_baseline.index).union(frequencies_stream.index)
     normalized_counts_baseline = frequencies_baseline.reindex(
         all_categories, fill_value=0
     )
-    normalized_counts_stream = frequencies_stream.reindex(
-        all_categories, fill_value=0
-    )
+    normalized_counts_stream = frequencies_stream.reindex(all_categories, fill_value=0)
 
     return normalized_counts_baseline, normalized_counts_stream
 
 
 def calculate_kl_with_dummy_bins(baseline, stream, n_bins):
-
     normalized_baseline, normalized_stream = simple_binning(
         baseline=baseline, stream=stream, n_bins=n_bins
     )
@@ -98,12 +91,8 @@ def calculate_kl_with_median(baseline, stream, median_origin="both", n_bins=5):
         df_bins_stream.unique()
     ]
 
-    all_categories = set(frequencies_baseline.index).union(
-        frequencies_stream.index
-    )
-    normalized_baseline = frequencies_baseline.reindex(
-        all_categories, fill_value=0
-    )
+    all_categories = set(frequencies_baseline.index).union(frequencies_stream.index)
+    normalized_baseline = frequencies_baseline.reindex(all_categories, fill_value=0)
     normalized_stream = frequencies_stream.reindex(all_categories, fill_value=0)
 
     kl_divergence = entropy(normalized_baseline, normalized_stream)
@@ -132,12 +121,8 @@ def calculate_js_with_median(baseline, stream, median_origin="both", n_bins=5):
         df_bins_stream.unique()
     ]
 
-    all_categories = set(frequencies_baseline.index).union(
-        frequencies_stream.index
-    )
-    normalized_baseline = frequencies_baseline.reindex(
-        all_categories, fill_value=0
-    )
+    all_categories = set(frequencies_baseline.index).union(frequencies_stream.index)
+    normalized_baseline = frequencies_baseline.reindex(all_categories, fill_value=0)
     normalized_stream = frequencies_stream.reindex(all_categories, fill_value=0)
 
     js_distance = jensenshannon(normalized_baseline, normalized_stream)

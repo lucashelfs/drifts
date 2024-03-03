@@ -121,6 +121,7 @@ KLdivergence(dist_a.reshape(-1, 1), dist_b.reshape(-1, 1))
 # Concatenate data to simulate a data stream with 2 drifts
 stream = np.concatenate((dist_a, dist_b, dist_c))
 
+
 # Auxiliary function to plot and verify the data
 def plot_data(dist_a, dist_b, dist_c, drifts=None):
     fig = plt.figure(figsize=(7, 3), tight_layout=True)

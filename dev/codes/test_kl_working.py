@@ -9,6 +9,7 @@ from scipy import stats, integrate
 
 warnings.filterwarnings("ignore")
 
+
 # returns the step function value at each increment of the CDF
 def cumcount_reduced(arr):
     """Cumulative count of a array"""
