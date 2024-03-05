@@ -1,8 +1,10 @@
 # Entities of the experiments
 
 
+
 ```mermaid
 
+classDiagram
 class Experiment{
     +String id
     +String type
