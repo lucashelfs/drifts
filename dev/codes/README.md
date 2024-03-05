@@ -18,5 +18,12 @@ class Class10 {
   size()
 }
 
+class BankAccount{
+    +String owner
+    +BigDecimal balance
+    +deposit(amount) bool
+    +withdrawal(amount) int
+}
+
 ```
 
