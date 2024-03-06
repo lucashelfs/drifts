@@ -32,7 +32,25 @@ class Experiment{
 }
 
 class Visualizer{
-    +String experiment_id
+    -String experiment_path
+
+    -fetch_change_points()
+    -fetch_experiment_change_points()
+    -plot_p_values()
+    -plot_dataset_change_points()
+    -plot_original_data()
+    -fetch_top_n_accepted_attributes()
+    -plot_multiple_p_values()
+    -plot_kl_values()
+}
+
+class BinningVisualizer{
+    +Dataframe baseline
+    +Dataframe stream
+
+    -plot_binning()
+    -create_binning_frame()
+    -create_binning_timeline()
 }
 
 ```
@@ -45,7 +63,6 @@ class Visualizer{
 ```mermaid
 classDiagram
 
-
 class Experiment{
     +String id
     +String test_type
@@ -53,57 +70,77 @@ class Experiment{
     +set_attr_cols()
     +set_dataset_prefix()
     +set_result_directory()
+    +set_baseline_dataframe()
+    +set_stream_dataframe()
 
     +write_metadata(initial=False)
-    +write_results()
-    
-    +create_baseline_dataframe()
-    +create_stream_dataframe()
+    +write_results() 
     
     +mp_window_test()
     +async_test()
     +set_test_window_size()
-}
 
-class MultiStreamExperiment{
-    +Dataframe Test
-}
-
-class SingleStreamExperiment{
-    +validate_given_attr()
-    +async_test_for_desired_attr()
+    +validate_desired_attrs()
+    +run_async_test_for_attrs()
 }
 
 class DatasetExperiment{
-    +Dataframe Baseline
-    +Dataframe Stream
-    +fetchData()
+    +Dataframe baseline
+    +Dataframe stream
+
+    +get_data_from_file()
+    +set_baseline_dataframe()
+    +set_stream_dataframe()
+
 }
 
 class SyntheticExperiment{
-    +fetchSyntheticData()
+    +Dataframe baseline
+    +Dataframe stream
+    +String synthetic_stream_creator_method
+    
+    +get_synthetic_data()
+    +set_baseline_dataframe()
+    +set_stream_dataframe()
 }
 
 class insectsExperiment{
-    +load_insects_dataframe()
-    +prepare_insects_test()
-    +run_insects_test()
-    +fetch_classes_and_minimal_class()
+    -fetch_classes_and_minimal_class()
+    -load_insects_dataframe()
+    -prepare_insects_test()
+    -run_insects_test()
 }
 
 class Visualizer{
-    +String experiment_id
+    -String experiment_path
+
+    -fetch_change_points()
+    -fetch_experiment_change_points()
+    -plot_p_values()
+    -plot_dataset_change_points()
+    -plot_original_data()
+    -fetch_top_n_accepted_attributes()
+    -plot_multiple_p_values()
+    -plot_kl_values()
 }
 
-SyntheticExperiment --|> SingleStreamExperiment 
-SingleStreamExperiment --|> Experiment
+class BinningVisualizer{
+    +Dataframe baseline
+    +Dataframe stream
+
+    -plot_binning()
+    -create_binning_frame()
+    -create_binning_timeline()
+}
+
+
+SyntheticExperiment --|> Experiment
 
 insectsExperiment --|> DatasetExperiment
-DatasetExperiment --|> MultiStreamExperiment
-MultiStreamExperiment --|> Experiment
+DatasetExperiment --|> Experiment
 
 Visualizer --|> Experiment
-
+BinningVisualizer --|> Experiment
 
 
 ```
