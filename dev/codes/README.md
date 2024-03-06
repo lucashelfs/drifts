@@ -66,7 +66,7 @@ class Experiment{
 }
 
 class MultiStreamExperiment{
-
+    +Dataframe Test
 }
 
 class SingleStreamExperiment{
