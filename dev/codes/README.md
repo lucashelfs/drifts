@@ -66,9 +66,10 @@ classDiagram
 class Experiment{
     -String id
     -String test_type
+    -String results_path
     -Dataframe baseline
     -Dataframe stream
-
+    
     +set_attr_cols()
     +set_baseline_dataframe()
     +set_stream_dataframe()
