@@ -2,13 +2,14 @@ from .dataset_experiment import DatasetExperiment
 
 
 class InsectsExperiment(DatasetExperiment):
-
     def __init__(
         self,
         **kwargs,
     ) -> None:
 
-        super().__init__(**kwargs,)
+        super().__init__(
+            **kwargs,
+        )
 
     def validate_given_attr(self):
         """Validate single attribute inputs."""
