@@ -64,20 +64,22 @@ class BinningVisualizer{
 classDiagram
 
 class Experiment{
-    +String id
-    +String test_type
+    -String id
+    -String test_type
+    -Dataframe baseline
+    -Dataframe stream
 
     +set_attr_cols()
-    +set_dataset_prefix()
-    +set_result_directory()
     +set_baseline_dataframe()
     +set_stream_dataframe()
+    +set_dataset_prefix()
+    +set_result_directory()
 
     +write_metadata(initial=False)
     +write_results() 
     
-    +mp_window_test()
     +async_test()
+    +mp_window_test()
     +set_test_window_size()
 
     +validate_desired_attrs()
@@ -85,23 +87,20 @@ class Experiment{
 }
 
 class DatasetExperiment{
-    +Dataframe baseline
-    +Dataframe stream
+    +String dataset_path
 
-    +get_data_from_file()
-    +set_baseline_dataframe()
-    +set_stream_dataframe()
+    -get_data_from_file()
+    -set_baseline_dataframe()
+    -set_stream_dataframe()
 
 }
 
 class SyntheticExperiment{
-    +Dataframe baseline
-    +Dataframe stream
     +String synthetic_stream_creator_method
     
-    +get_synthetic_data()
-    +set_baseline_dataframe()
-    +set_stream_dataframe()
+    -get_synthetic_data()
+    -set_baseline_dataframe()
+    -set_stream_dataframe()
 }
 
 class insectsExperiment{
