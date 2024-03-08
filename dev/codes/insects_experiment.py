@@ -10,6 +10,7 @@ class InsectsExperiment(DatasetExperiment):
         super().__init__(
             **kwargs,
         )
+        self.set_data_source(**kwargs)
 
     def validate_given_attr(self):
         """Validate single attribute inputs."""
@@ -36,3 +37,8 @@ class InsectsExperiment(DatasetExperiment):
             self.async_test_for_desired_attrs()
         else:
             raise ("Method not available for the given data source.")
+
+    def set_data_source(self, **kwargs):
+        self.data_source = kwargs.get("data_source", False)
+        if not self.data_source:
+            raise ("The data source must be specified. Available: insects.")

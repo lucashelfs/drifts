@@ -1,7 +1,7 @@
 from .base_experiment import BaseExperiment
 
 
-class DatasetExperiment(BaseExperiment):
+class SyntheticExperiment(BaseExperiment):
     def __init__(
         self,
         **kwargs,

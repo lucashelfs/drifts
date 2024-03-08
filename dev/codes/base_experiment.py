@@ -1,5 +1,7 @@
+import os
+
 from config import DEFAULT_RESULTS_FOLDER
-from abc import ABC
+from abc import ABC, abstractmethod
 
 TEST_TYPES = ["ks", "kl_dummy", "kl_median", "js_dummy", "js_median"]
 
@@ -45,10 +47,10 @@ class BaseExperiment(ABC):
         if self.attr:
             self.validate_given_attr()
 
-        self.n_bins = kwargs.get("n_bins", False)  # validate the input with pydantic
+        # TODO: validate the input with pydantic
+        self.n_bins = kwargs.get("n_bins", False)
 
         # TODO: fetch the median origin from kwargs
-
         if self.test_type not in TEST_TYPES:
             raise ("Invalid test!")
 
@@ -82,3 +84,16 @@ class BaseExperiment(ABC):
             self.metadata["debug_size"] = self.debug_size
         else:
             self.debug_size = False
+
+    @abstractmethod
+    def set_dataframes(self):
+        """Abstract method for handling the baseline and stream dataframes."""
+        raise NotImplementedError("This method has not been implemented.")
+
+    def set_result_directory(self):
+        """Set the results directory if it does not exist."""
+        if not os.path.exists(self.results_folder):
+            os.makedirs(self.results_folder)
+            print(f"Created directory: {self.results_folder}")
+        else:
+            print(f"The directory exists! {self.results_folder}")
