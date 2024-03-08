@@ -1,7 +1,7 @@
 import pandas as pd
 from scipy.io.arff import loadarff
 
-file_path_prefix = "../data/usp-stream-data/"
+file_path_prefix = "/home/lucas.helfstein/mestrado/drifts/dev/data/usp-stream-data/"
 
 
 def load_insect_dataset(filename: str) -> pd.DataFrame:

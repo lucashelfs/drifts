@@ -1,8 +1,23 @@
+import json
 import os
+import time
+import pandas as pd
 
-from config import DEFAULT_RESULTS_FOLDER
 from abc import ABC, abstractmethod
+from itertools import repeat
+from scipy import stats
+from multiprocessing import Pool
 
+from codes.binning import (
+    calculate_kl_with_dummy_bins,
+    calculate_kl_with_median,
+    calculate_js_with_dummy_bins,
+    calculate_js_with_median,
+)
+
+from tqdm import tqdm
+
+# TODO: make the test types as an ENUM
 TEST_TYPES = ["ks", "kl_dummy", "kl_median", "js_dummy", "js_median"]
 
 
@@ -14,35 +29,16 @@ class BaseExperiment(ABC):
 
     def __init__(
         self,
-        dataset: str,
-        train_percentage: int = 0.25,
-        DEBUG_SIZE=None,
-        stratified=False,
-        batches=False,
-        results_folder=None,
         **kwargs,
     ) -> None:
-        self.debug_size = DEBUG_SIZE
-
-        # Handling better the results folder
-        if not results_folder:
-            self.results_folder = DEFAULT_RESULTS_FOLDER
-        else:
-            self.results_folder = results_folder
-
-        self.set_result_directory()
-
-        # TODO: develop synthetic data logic and handling inside the class
-        self.data_source = kwargs.get("data_source", False)
-        if not self.data_source:
-            raise ("The data source must be specified. Available: insects.")
 
         # Fetch init data for the test type and its possible variables
         self.test_type = kwargs.get("test_type", False)
         if not self.test_type:
             raise ("Invalid test type!")
 
-        # Check if test should be applied on one attribute
+        # Check if test should be applied on only one attribute
+        # TODO: validate if this can be a DatasetExperiment method
         self.attr = kwargs.get("attr", False)
         if self.attr:
             self.validate_given_attr()
@@ -61,34 +57,36 @@ class BaseExperiment(ABC):
             raise ("Test is only available if n_bins is defined properly.")
 
         # Define specific configuration of the test
-        self.batches = batches
-        self.dataset = dataset
-        self.train_percentage = train_percentage
-        self.stratified = stratified
+        self.batches = kwargs.get("batches", False)
+        self.stratified = kwargs.get("stratified", False)
+        self.train_percentage = kwargs.get("train_percentage", 0.25)
+        self.results_folder = kwargs.get("results_folder", False)
+        self.DEBUG_SIZE = kwargs.get("DEBUG_SIZE", None)
 
-        # Set dataset prefix
-        self.set_dataset_prefix()
+        # Set some configs
+        self.set_data_source()
+        self.set_result_directory()
+        self.write_metadata(initial=True)
+        self.set_results_dataset_filename()
 
-        # Start the metadata structure
-        self.write_initial_metadata()
-
-    def write_initial_metadata(self):
-        """Write experiment metadata on the data structure."""
-        self.metadata["dataset"] = self.dataset
-        self.metadata["execution_time"] = ({},)
-        self.metadata["pools"] = self.NUMBER_OF_POOLS
-        self.metadata["kind_of_test"] = self.test_type
-        self.metadata["stratified"] = str(self.stratified)
-        self.metadata["batches"] = str(self.batches)
-        if self.debug_size:
-            self.metadata["debug_size"] = self.debug_size
+    def write_metadata(self, initial: bool = False):
+        """Write experiment metadata on its data structure."""
+        if initial:
+            self.metadata["execution_time"] = ({},)
+            self.metadata["pools"] = self.NUMBER_OF_POOLS
+            self.metadata["kind_of_test"] = self.test_type
+            self.metadata["stratified"] = str(self.stratified)
+            self.metadata["batches"] = str(self.batches)
+            self.metadata["data_source"] = str(self.data_source)
+            if self.debug_size:
+                self.metadata["debug_size"] = self.debug_size
+            else:
+                self.debug_size = False
         else:
-            self.debug_size = False
-
-    @abstractmethod
-    def set_dataframes(self):
-        """Abstract method for handling the baseline and stream dataframes."""
-        raise NotImplementedError("This method has not been implemented.")
+            json_object = json.dumps(self.metadata, indent=4)
+            with open(f"{self.dataset_prefix}_metadata.json", "w") as outfile:
+                outfile.write(json_object)
+            return
 
     def set_result_directory(self):
         """Set the results directory if it does not exist."""
@@ -97,3 +95,186 @@ class BaseExperiment(ABC):
             print(f"Created directory: {self.results_folder}")
         else:
             print(f"The directory exists! {self.results_folder}")
+
+    def print_experiment_info(self):
+        """Print experiment information about the main dataframes used on the tests."""
+        print("GENERAL INFORMATION")
+        print(f"DF baseline: {self.df_baseline.shape}")
+        print(f"DF stream: {self.df_stream.shape}")
+
+    def mp_window_test(
+        self,
+        start_idx: int,
+        df_baseline: pd.DataFrame,
+        df_stream: pd.DataFrame,
+        attr: str,
+        window_size: int,
+    ) -> dict:
+        """Apply test on a window, to be used inside a multiprocessing pool.
+        ref: https://stackoverflow.com/questions/63096168/how-to-apply-multiprocessing-to-a-sliding-window
+        """
+        start = start_idx + 1
+        end = start + window_size
+        baseline = df_baseline[attr]
+        stream = df_stream[attr][start:end]
+
+        if self.test_type == "ks":
+            test_stat = stats.kstest(baseline, stream)
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "p_value": test_stat.pvalue,
+            }
+        elif self.test_type == "kl_median":
+            distance = calculate_kl_with_median(
+                baseline, stream, median_origin="both", n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        elif self.test_type == "kl_dummy":
+            distance = calculate_kl_with_dummy_bins(
+                baseline, stream, n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        elif self.test_type == "js_median":
+            distance = calculate_js_with_median(
+                baseline, stream, median_origin="both", n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        elif self.test_type == "js_dummy":
+            distance = calculate_js_with_dummy_bins(
+                baseline, stream, n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        else:
+            Exception("Undefined test!")
+
+    def async_test_runner(
+        self,
+        df_baseline: pd.DataFrame,
+        df_stream: pd.DataFrame,
+        attr: str,
+        batches=False,
+        debug_size=None,
+    ) -> pd.DataFrame:
+        """Create a pool and execute the test on a range of windows
+        on the stream dataframe.
+
+        :param df_baseline: Baseline dataframe.
+        :type df_baseline: pd.DataFrame
+        :param df_stream: Stream dataframe.
+        :type df_stream: pd.DataFrame
+        :param attr: Attribute colum to be tested.
+        :type attr: str
+        :param DEBUG_SIZE: Size to be tested in debug, defaults to None
+        :type DEBUG_SIZE: int, optional
+        :return: Dataframe with results of the applied tests.
+        :rtype: pd.DataFrame
+        """
+        NUM_EL = len(df_stream[attr])
+        WINDOW_SIZE = len(df_baseline[attr])
+
+        if not batches:
+            STARTS = list(range(NUM_EL - WINDOW_SIZE - 1))
+        else:
+            STARTS = list(range(0, NUM_EL - WINDOW_SIZE - 1, WINDOW_SIZE))
+
+        if debug_size:
+            if not batches:
+                STARTS = list(range(debug_size))
+            else:
+                STARTS = list(range(0, debug_size, WINDOW_SIZE))
+
+        with Pool(self.NUMBER_OF_POOLS) as p:
+            result_multi = p.starmap(
+                self.mp_window_test,
+                tqdm(
+                    zip(
+                        STARTS,
+                        repeat(df_baseline),
+                        repeat(df_stream),
+                        repeat(attr),
+                        repeat(WINDOW_SIZE),
+                    ),
+                    total=len(STARTS),
+                ),
+            )
+
+        df_results = pd.DataFrame(result_multi)
+        return df_results
+
+    def async_test(self):
+        """Test for the desired attrs with a multithread approach."""
+        results = []
+
+        for attr in self.desired_cols:
+            print(f"Testing for attr: {attr}")
+            attr_start_time = time.time()
+            attr_results = self.async_test_runner(
+                self.df_baseline,
+                self.df_stream,
+                attr,
+                debug_size=self.debug_size,
+                batches=self.batches,
+            )
+            attr_end_time = time.time()
+            elapsed_attr_time = attr_end_time - attr_start_time
+            self.metadata["execution_time"][0][attr] = elapsed_attr_time
+            results.append(attr_results)
+
+        self.metadata["Class size"] = self.window_size
+        self.metadata["Baseline size"] = self.df_baseline.shape[0]
+        self.metadata["Stream size"] = self.df_stream.shape[0]
+        self.write_metadata()
+
+        dataset_results = pd.concat(results)
+        dataset_results.to_csv(self.dataset_prefix + ".csv", index=None)
+
+    @abstractmethod
+    def run_test(self):
+        """Logic for a experiment run."""
+        raise NotImplementedError("This method has not been implemented.")
+
+    @abstractmethod
+    def set_dataframes(self):
+        """Abstract method for handling the baseline and stream dataframes."""
+        raise NotImplementedError("This method has not been implemented.")
+
+    @abstractmethod
+    def set_data_source(self):
+        raise NotImplementedError("This method has not been implemented.")
+
+    @abstractmethod
+    def set_results_dataset_filename(self):
+        """Set the filename for the experiment results file."""
+        raise NotImplementedError("This method has not been implemented.")
