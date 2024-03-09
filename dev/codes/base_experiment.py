@@ -61,7 +61,7 @@ class BaseExperiment(ABC):
         self.stratified = kwargs.get("stratified", False)
         self.train_percentage = kwargs.get("train_percentage", 0.25)
         self.results_folder = kwargs.get("results_folder", False)
-        self.DEBUG_SIZE = kwargs.get("DEBUG_SIZE", None)
+        self.debug_size = kwargs.get("debug_size", None)
 
         # Set some configs
         self.set_data_source()

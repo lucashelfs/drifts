@@ -10,12 +10,19 @@ class InsectsExperiment(DatasetExperiment):
         **kwargs,
     ) -> None:
 
+        self.set_dataset(**kwargs)
+
         super().__init__(
             **kwargs,
         )
 
         self.set_dataframes()
         self.set_test()
+
+    def set_dataset(self, **kwargs):
+        self.dataset = kwargs.get("dataset", None)
+        if not self.dataset:
+            raise Exception("The dataset mus be speficied for dataset experiments!")
 
     def validate_given_attr(self):
         """Validate single attribute inputs."""

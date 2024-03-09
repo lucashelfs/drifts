@@ -1,4 +1,5 @@
 from .base_experiment import BaseExperiment
+from abc import abstractmethod
 
 
 class DatasetExperiment(BaseExperiment):
@@ -25,3 +26,7 @@ class DatasetExperiment(BaseExperiment):
     def write_dataset_metadata(self):
         """Write experiment metadata on its data structure."""
         self.metadata["dataset"] = self.dataset
+
+    @abstractmethod
+    def set_dataset():
+        pass
