@@ -1,7 +1,7 @@
 import json
 import multiprocessing.pool as mpp
 
-from usp_stream_datasets import load_insect_dataset, insects_datasets
+from codes.usp_stream_datasets import load_insect_dataset, insects_datasets
 
 
 def generate_experiment_filenames(
