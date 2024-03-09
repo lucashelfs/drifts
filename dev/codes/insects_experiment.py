@@ -134,13 +134,8 @@ class InsectsVisualizer:
     def plot_result_values(self, **kwargs):
         """Plot the results for the given experiment."""
 
-        # TODO: fetch if it is KS, KL or JS - change the title of the plot acording to that
-        # TODO: ensure it works for the three types of tests that we have.
-
         index = "end"
-
         savefig = kwargs.get("savefig", False)
-
         attr = kwargs.get("attr", False)
 
         if attr:
@@ -154,11 +149,20 @@ class InsectsVisualizer:
 
         csv_file, _, plot_file = self.fetch_experiment_filename()
         df_analysis = pd.read_csv(csv_file)
+
+        test_type = self.experiment.test_type
+
+        if test_type == "ks":
+            result_col = "p_value"
+        else:
+            result_col = "distance"
+
         df_plot = df_analysis[(df_analysis["attr"].isin(attr_list))][
-            ["distance", "attr", "start", "end"]
+            [result_col, "attr", "start", "end"]
         ]
 
         dataset = kwargs.get("dataset", False)
+
         if not dataset:
             raise Exception("Missing dataset on experiment visualizer!")
 
@@ -171,13 +175,13 @@ class InsectsVisualizer:
         n_bins = kwargs.get("n_bins", False)
 
         if not n_bins:
-            title = f"Distance for {dataset} dataset indexed by {index} - {attr}"
+            title = f"Distance for {dataset} dataset indexed by {index} - {attr} - Test type: {test_type}"
         else:
-            title = f"Distance for {dataset} dataset indexed by {index} - {attr} - bins: {n_bins}"
+            title = f"Distance for {dataset} dataset indexed by {index} - {attr} - bins: {n_bins} - Test type: {test_type}"
 
         plt.clf()
         plt.title(title)
-        g = sns.lineplot(x=index, y="distance", hue="attr", data=df_plot)
+        g = sns.lineplot(x=index, y=result_col, hue="attr", data=df_plot)
         change_points = self.fetch_change_points()
         stream_change_points = change_points["stream"]
         if stream_change_points:
