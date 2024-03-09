@@ -1,10 +1,14 @@
+import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 
 from codes.dataset_experiment import DatasetExperiment
 from codes.usp_stream_datasets import load_insect_dataset, insects_datasets
 
 
 class InsectsExperiment(DatasetExperiment):
+    """Insects experiments abstraction."""
+
     def __init__(
         self,
         **kwargs,
@@ -109,3 +113,150 @@ class InsectsExperiment(DatasetExperiment):
         """Logic for a run of the insect experiment."""
         self.print_experiment_info()
         self.async_test()
+
+
+class InsectsVisualizer:
+    """Visualizer for the results of a insect experiment."""
+
+    sns.set(rc={"figure.figsize": (12, 6)})
+
+    def __init__(self, experiment) -> None:
+        assert isinstance(experiment, InsectsExperiment)
+        self.experiment = experiment
+
+    def fetch_experiment_filename(self):
+        """Create the output filenames from the given experiment."""
+        results_file = self.experiment.dataset_prefix + ".csv"
+        metadata_file = self.experiment.dataset_prefix + "metadata.json"
+        plot_file = self.experiment.dataset_prefix + ".jpg"
+        return results_file, metadata_file, plot_file
+
+    def plot_result_values(self, **kwargs):
+        """Plot the results for the given experiment."""
+
+        # TODO: fetch if it is KS, KL or JS - change the title of the plot acording to that
+        # TODO: ensure it works for the three types of tests that we have.
+
+        index = "end"
+
+        savefig = kwargs.get("savefig", False)
+
+        attr = kwargs.get("attr", False)
+
+        if attr:
+            attr_list = [attr]
+
+        if not attr:
+            print(
+                "Attribute not defined for result values. Trying to fetch from experiment."
+            )
+            attr_list = self.experiment.desired_cols
+
+        csv_file, _, plot_file = self.fetch_experiment_filename()
+        df_analysis = pd.read_csv(csv_file)
+        df_plot = df_analysis[(df_analysis["attr"].isin(attr_list))][
+            ["distance", "attr", "start", "end"]
+        ]
+
+        dataset = kwargs.get("dataset", False)
+        if not dataset:
+            raise Exception("Missing dataset on experiment visualizer!")
+
+        if df_plot.empty:
+            print(
+                "The dataframe for plotting is empty! The full analysis will be plotted."
+            )
+            df_plot = df_analysis
+
+        n_bins = kwargs.get("n_bins", False)
+
+        if not n_bins:
+            title = f"Distance for {dataset} dataset indexed by {index} - {attr}"
+        else:
+            title = f"Distance for {dataset} dataset indexed by {index} - {attr} - bins: {n_bins}"
+
+        plt.clf()
+        plt.title(title)
+        g = sns.lineplot(x=index, y="distance", hue="attr", data=df_plot)
+        change_points = self.fetch_change_points()
+        stream_change_points = change_points["stream"]
+        if stream_change_points:
+            for change_point in stream_change_points:
+                g.axvline(change_point["reindexed"], ls="--", c="yellow")
+        if savefig:
+            plt.savefig(plot_file)
+        plt.show()
+
+    def fetch_change_points(self) -> list:
+        """Fetch reindexed change points on baseline and stream datasets."""
+        change_points = insects_datasets[self.experiment.dataset].get(
+            "change_point", []
+        )
+        cps = {"baseline": [], "stream": []}
+
+        # Fetch for stream
+        for change_point in change_points:
+            stream_change_point = self.experiment.df_stream.original_index[
+                self.experiment.df_stream.original_index == change_point
+            ].index.tolist()
+            if len(stream_change_point) > 0:
+                cps["stream"].append(
+                    {"original": change_point, "reindexed": stream_change_point[0]}
+                )
+        # Fetch for baseline
+        for change_point in change_points:
+            baseline_change_point = self.experiment.df_baseline.original_index[
+                self.experiment.df_baseline.original_index == change_point
+            ].index.tolist()
+            if len(baseline_change_point) > 0:
+                cps["baseline"].append(
+                    {
+                        "original": change_point,
+                        "reindexed": baseline_change_point[0],
+                    }
+                )
+        return cps
+
+    def plot_original_data(self, **kwargs):
+        """Create the lineplot of an attribute of a species on the dataset of the experiment."""
+
+        original_dataframe = self.experiment.total_df
+        dataset_name = self.experiment.dataset
+        change_points = self.fetch_change_points()
+
+        species = kwargs.get("species", False)
+        attr = kwargs.get("attr", False)
+
+        if not attr:
+            print("Please set the attribute to be displayed.")
+            return
+
+        if species:
+            title = (
+                f"Original distribution - {species} - {dataset_name} dataset - {attr}"
+            )
+            df = original_dataframe[original_dataframe["class"] == species].iloc[
+                :,
+            ]
+        else:
+            title = (
+                f"Original distribution - all species - {dataset_name} dataset - {attr}"
+            )
+            df = original_dataframe
+
+        if attr not in df.columns.tolist():
+            print("The attribute is not present on the Dataframe.")
+            print(f"The available Attrs are: {df.columns.tolist()}")
+            return
+
+        plt.clf()
+
+        plt.title(title)
+        g = sns.lineplot(
+            x=df.index,
+            y=attr,
+            data=df,
+        )
+        for change_point in change_points:
+            g.axvline(change_point, ls="--", c="yellow")
+        plt.show()
