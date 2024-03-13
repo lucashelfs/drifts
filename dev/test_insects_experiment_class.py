@@ -1,51 +1,50 @@
 import os
 from codes.insects_experiment import InsectsExperiment, InsectsVisualizer
 
-n_bins = 5
-dataset_name = "Incremental (bal.)"
-attr = "Att31"
-test_type = "ks"
-binning_type = "median"
-median_origin = "both"
 
-results_folder = os.getcwd() + f"/TEST-results_of_{test_type}_{n_bins}_{attr}/"
+if __name__ == "__main__":
 
-config = dict(
-    batches=False,
-    dataset=dataset_name,
-    attr=attr,
-    results_folder=results_folder,
-    test_type=test_type,
-    n_bins=n_bins,
-    binning_type=binning_type,
-    median_origin=median_origin,
-)
+    n_bins = 5
+    dataset_name = "Incremental (bal.)"
+    attr = "Att31"
+    test_type = "ks"
+    binning_type = "median"
+    median_origin = "both"
 
+    results_folder = os.getcwd() + f"/TEST-results_of_{test_type}_{n_bins}_{attr}/"
 
-# Set the experiment
-ie = InsectsExperiment(**config)
+    config = dict(
+        batches=False,
+        dataset=dataset_name,
+        attr=attr,
+        results_folder=results_folder,
+        test_type=test_type,
+        n_bins=n_bins,
+        binning_type=binning_type,
+        median_origin=median_origin,
+    )
 
-# Run the experiment
-# ie.run_test()
+    # Set the experiment
+    ie = InsectsExperiment(**config)
 
-# Set a visualizer for the experiment result
-iv = InsectsVisualizer(ie)
+    # Run the experiment
+    ie.run_test()
 
-# Plot the obtained results
-iv.plot_result_values(**config)
+    # Set a visualizer for the experiment result
+    iv = InsectsVisualizer(ie)
 
+    # Plot the obtained results
+    iv.plot_result_values(**config)
 
-# # Plot original data for the attr for example
-# iv.plot_original_data(**config)
+    # # Plot original data for the attr for example
+    # iv.plot_original_data(**config)
 
+    # Generate GIF of stream binning
+    # create_binning_timeline(exp.df_baseline, exp.df_stream, **config)
 
-# Generate GIF of stream binning
-# create_binning_timeline(exp.df_baseline, exp.df_stream, **config)
-
-
-# TODO: improve below
-# Plot first baseline bin
-# WINDOW_SIZE = len(exp.df_baseline[attr])
-# plot_binning(exp.df_baseline[attr],
-#              exp.df_stream[attr][:WINDOW_SIZE],
-#              **config)
+    # TODO: improve below
+    # Plot first baseline bin
+    # WINDOW_SIZE = len(exp.df_baseline[attr])
+    # plot_binning(exp.df_baseline[attr],
+    #              exp.df_stream[attr][:WINDOW_SIZE],
+    #              **config)

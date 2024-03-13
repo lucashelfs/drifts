@@ -239,9 +239,7 @@ class InsectsVisualizer:
             title = (
                 f"Original distribution - {species} - {dataset_name} dataset - {attr}"
             )
-            df = original_dataframe[original_dataframe["class"] == species].iloc[
-                :,
-            ]
+            df = original_dataframe[original_dataframe["class"] == species].iloc[:,]
         else:
             title = (
                 f"Original distribution - all species - {dataset_name} dataset - {attr}"
