@@ -41,10 +41,3 @@ if __name__ == "__main__":
 
     # Generate GIF of stream binning
     # create_binning_timeline(exp.df_baseline, exp.df_stream, **config)
-
-    # TODO: improve below
-    # Plot first baseline bin
-    # WINDOW_SIZE = len(exp.df_baseline[attr])
-    # plot_binning(exp.df_baseline[attr],
-    #              exp.df_stream[attr][:WINDOW_SIZE],
-    #              **config)

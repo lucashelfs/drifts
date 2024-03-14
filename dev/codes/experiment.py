@@ -61,11 +61,11 @@ class Experiment:
             self.results_folder = results_folder
 
         self.set_result_directory()
-
-        # TODO: develop synthetic data logic and handling inside the class
         self.data_source = kwargs.get("data_source", False)
         if not self.data_source:
-            raise ("The data source must be specified. Available: insects.")
+            raise (
+                "The data source must be specified. Available: insects or synthetic."
+            )
 
         # Fetch init data for the test type and its possible variables
         self.test_type = kwargs.get("test_type", False)

@@ -37,10 +37,3 @@ for n_bins in bins:
 
 # # Plot values for that attribute
 # plot_kl_values(**config)
-
-# TODO: improve below
-# Plot first baseline bin
-# WINDOW_SIZE = len(exp.df_baseline[attr])
-# plot_binning(exp.df_baseline[attr],
-#              exp.df_stream[attr][:WINDOW_SIZE],
-#              **config)

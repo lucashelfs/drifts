@@ -13,10 +13,6 @@ from codes.config import DEFAULT_RESULTS_FOLDER
 sns.set(rc={"figure.figsize": (12, 6)})
 
 
-# TODO: implement a way of visualizing an experiment and DRY on the methods
-# TODO: transfer the binning visualizers to this file
-
-
 def fetch_change_points(dataset_name: str) -> list:
     """Fetch change point list for a requested Dataset."""
     return insects_datasets[dataset_name].get("change_point", [])
@@ -81,9 +77,7 @@ def plot_original_data(dataset_name: str, species: str = "", attr: str = ""):
         print("Please set the attribute to be displayed.")
         return
     if species:
-        df = original_dataframe[original_dataframe["class"] == species].iloc[
-            :,
-        ]
+        df = original_dataframe[original_dataframe["class"] == species].iloc[:,]
     else:
         df = original_dataframe
     if attr not in df.columns.tolist():
