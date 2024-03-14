@@ -6,6 +6,16 @@ from scipy.spatial.distance import jensenshannon
 
 N_BINS = 20
 
+
+"""
+File with the distances that use binning strategies to be computed.
+
+References:
+- https://freedium.cfd/https://towardsdatascience.com/understanding-kl-divergence-f3ddc8dff254
+- https://freedium.cfd/https://towardsdatascience.com/how-to-understand-and-use-jensen-shannon-divergence-b10e11b03fd6
+"""
+
+
 # TODO: DRY the methods
 
 

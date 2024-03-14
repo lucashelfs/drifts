@@ -33,11 +33,11 @@ def plot_binning(baseline, stream, binning_type="dummy", median_origin=None, **k
     plt.show()
 
 
-# Plot shit like this
-# https://freedium.cfd/https://towardsdatascience.com/how-to-create-a-gif-from-matplotlib-plots-in-python-6bec6c0c952c
-
-
 def create_binning_frame(baseline, stream, step, binning_type="dummy", **kwargs):
+    """
+    References:
+    - https://freedium.cfd/https://towardsdatascience.com/how-to-create-a-gif-from-matplotlib-plots-in-python-6bec6c0c952c
+    """
     if binning_type == "dummy":
         df_bins_baseline, df_bins_stream = dummy_binning(
             baseline, stream, n_bins=kwargs.get("n_bins")

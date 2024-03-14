@@ -1,10 +1,13 @@
-# https://stackoverflow.com/questions/61709954/how-do-i-find-the-kl-divergence-of-samples-from-two-2d-distributions
+"""
+File with the distances that use binning strategies to be computed.
 
-# https://mail.python.org/pipermail/scipy-user/2011-May/029521.html
+References:
 
-# A Nearest-Neighbor Approach to Estimating Divergence between
-# Continuous Random Vectors
-# https://ieeexplore.ieee.org/document/4035959
+- https://stackoverflow.com/questions/61709954/how-do-i-find-the-kl-divergence-of-samples-from-two-2d-distributions
+- https://mail.python.org/pipermail/scipy-user/2011-May/029521.html
+- A Nearest-Neighbor Approach to Estimating Divergence between Continuous Random Vectors: https://ieeexplore.ieee.org/document/4035959
+
+"""
 
 import numpy as np
 from scipy.stats import gaussian_kde
