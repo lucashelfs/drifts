@@ -22,6 +22,18 @@ TEST_TYPES = ["ks", "kl_dummy", "kl_median", "js_dummy", "js_median"]
 
 
 class BaseExperiment(ABC):
+    """
+    Base experiment class, with a multithreaded approach for testing drifts between a baseline dataframe and a stream one.
+
+    References
+    ----------
+
+    Wang, Zhixiong, and Wei Wang. "Concept drift detection based on Kolmogorov–Smirnov test."
+    Artificial Intelligence in China: Proceedings of the International Conference on Artificial Intelligence in China.
+    Springer Singapore, 2020.
+
+    """
+
     NUMBER_OF_POOLS = 8
 
     dataset_prefix = None
@@ -111,8 +123,22 @@ class BaseExperiment(ABC):
         window_size: int,
     ) -> dict:
         """Apply test on a window, to be used inside a multiprocessing pool.
-        ref: https://stackoverflow.com/questions/63096168/how-to-apply-multiprocessing-to-a-sliding-window
+
+        Args:
+            start_idx (int): The starting index of the window on the stream dataframe
+            df_baseline (pd.DataFrame): Baseline dataframe
+            df_stream (pd.DataFrame): Stream dataframe
+            attr (str): The attribute column on the dataframe being tested
+            window_size (int): The testing window size
+
+        Returns:
+            dict: Dictionary with the test params and results
+
+        References:
+
+        - https://stackoverflow.com/questions/63096168/how-to-apply-multiprocessing-to-a-sliding-window
         """
+
         start = start_idx + 1
         end = start + window_size
         baseline = df_baseline[attr]
@@ -190,17 +216,17 @@ class BaseExperiment(ABC):
         """Create a pool and execute the test on a range of windows
         on the stream dataframe.
 
-        :param df_baseline: Baseline dataframe.
-        :type df_baseline: pd.DataFrame
-        :param df_stream: Stream dataframe.
-        :type df_stream: pd.DataFrame
-        :param attr: Attribute colum to be tested.
-        :type attr: str
-        :param DEBUG_SIZE: Size to be tested in debug, defaults to None
-        :type DEBUG_SIZE: int, optional
-        :return: Dataframe with results of the applied tests.
-        :rtype: pd.DataFrame
+        Args:
+            df_baseline (pd.DataFrame): Baseline dataframe.
+            df_stream (pd.DataFrame): Stream dataframe.
+            attr (str): Attribute column to be tested.
+            batches (bool, optional): If the experiment uses sliding windows or batches. Defaults to False.
+            debug_size (_type_, optional): A debug size for testing. Defaults to None.
+
+        Returns:
+            pd.DataFrame: _description_
         """
+
         NUM_EL = len(df_stream[attr])
         WINDOW_SIZE = len(df_baseline[attr])
 
