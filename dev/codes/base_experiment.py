@@ -58,15 +58,10 @@ class BaseExperiment(ABC):
         # TODO: validate the input with pydantic
         self.n_bins = kwargs.get("n_bins", False)
 
-        # TODO: fetch the median origin from kwargs
-        if self.test_type not in TEST_TYPES:
-            raise ("Invalid test!")
+        self.median_origin = kwargs.get("median_origin", False)
 
-        # The other variables for the test are fetched here
-        if (
-            self.test_type.startswith("kl") or self.test_type.startswith("js")
-        ) and not self.n_bins:
-            raise ("Test is only available if n_bins is defined properly.")
+        # Validating the test inputs
+        self.validate_test_params()
 
         # Define specific configuration of the test
         self.batches = kwargs.get("batches", False)
@@ -80,6 +75,19 @@ class BaseExperiment(ABC):
         self.set_result_directory()
         self.write_metadata(initial=True)
         self.set_results_dataset_filename()
+
+    def validate_test_params(self):
+        """Validate if the passad params are properly defined."""
+        if self.test_type not in TEST_TYPES:
+            raise ("Invalid test type!")
+
+        if (
+            self.test_type.startswith("kl") or self.test_type.startswith("js")
+        ) and not self.n_bins:
+            raise ("Test type is only available if n_bins is defined properly.")
+
+        if "median" in self.test_type and not self.median_origin:
+            raise ("The median origin must be defined for this test type!")
 
     def write_metadata(self, initial: bool = False):
         """Write experiment metadata on its data structure."""
@@ -156,7 +164,7 @@ class BaseExperiment(ABC):
             }
         elif self.test_type == "kl_median":
             distance = calculate_kl_with_median(
-                baseline, stream, median_origin="both", n_bins=self.n_bins
+                baseline, stream, median_origin=self.median_origin, n_bins=self.n_bins
             )
             return {
                 "attr": attr,
@@ -180,7 +188,7 @@ class BaseExperiment(ABC):
             }
         elif self.test_type == "js_median":
             distance = calculate_js_with_median(
-                baseline, stream, median_origin="both", n_bins=self.n_bins
+                baseline, stream, median_origin=self.median_origin, n_bins=self.n_bins
             )
             return {
                 "attr": attr,
