@@ -25,6 +25,18 @@ class SyntheticExperiment(BaseExperiment):
 
         self.set_dataframes(**kwargs)
         self.set_test()
+        self.set_change_points()
+
+    def set_change_points(self):
+        """Set the change points to be plotted on the visualization."""
+        change_points = self.synthetic_generator.change_points
+        change_points_dict = {"baseline": [], "stream": []}
+        for change_point in change_points:
+            if change_point < len(self.df_baseline):
+                change_points_dict["baseline"].append(change_point)
+            else:
+                change_points_dict["stream"].append(change_point - len(self.df_baseline))
+        self.change_points = change_points_dict
 
     def set_dataframes(self, **kwargs):
         """Abstract method for handling the baseline and stream dataframes."""
@@ -47,9 +59,8 @@ class SyntheticExperiment(BaseExperiment):
 
     def create_stream(self):
         """Create a synthethic stream dataframe for the experiment."""
-        self.stream = self.stream[self.window_size :]
         self.df_stream = (
-            pd.DataFrame(self.stream, columns=["value"])
+            pd.DataFrame(self.stream[self.window_size :], columns=["value"])
             .rename_axis("original_index")
             .reset_index()
         )
@@ -107,7 +118,9 @@ class SynthethicVisualizer:
             attr_list = [attr]
 
         if not attr:
-            print("Attribute not defined for result values. Fetching from experiment.")
+            print(
+                "Attribute not defined for result values. Using default from experiment."
+            )
             attr_list = self.experiment.desired_cols
 
         csv_file, _, plot_file = self.fetch_experiment_filename()
@@ -131,23 +144,27 @@ class SynthethicVisualizer:
             df_plot = df_analysis
 
         n_bins = kwargs.get("n_bins", False)
+        median_origin = kwargs.get("median_origin", False)
 
         if not n_bins:
             title = f"Distance for synthetic stream indexed by {index} - {attr} - Test type: {test_type}"
         else:
             title = f"Distance for synthetic stream indexed by {index} - {attr} - bins: {n_bins} - Test type: {test_type}"
 
+        if median_origin:
+            title = title + f" - Median Origin: {median_origin}"
+
         plt.clf()
         plt.title(title)
         g = sns.lineplot(x=index, y=result_col, hue="attr", data=df_plot)
 
+        change_points = self.experiment.change_points
+        stream_change_points = change_points["stream"]
+        if stream_change_points:
+            for change_point in stream_change_points:
+                g.axvline(change_point, ls="--", c="yellow")
+
         if savefig:
             plt.savefig(plot_file)
-        # change_points = self.fetch_change_points()
-        # stream_change_points = change_points["stream"]
-        # if stream_change_points:
-        #     for change_point in stream_change_points:
-        #         g.axvline(change_point["reindexed"], ls="--", c="yellow")
-        # if savefig:
-        #     plt.savefig(plot_file)
+
         plt.show()
