@@ -28,9 +28,7 @@ def dummy_binning(baseline, stream, bins=N_BINS):
     return df_bins_baseline, df_bins_stream
 
 
-def median_binning(
-    baseline, stream, median_origin: str = "baseline", n_bins: int = N_BINS
-):
+def median_binning(baseline, stream, median_origin: str = "None", n_bins: int = N_BINS):
     min_value = min(baseline.min(), stream.min())
     max_value = max(baseline.max(), stream.max())
 
@@ -137,3 +135,37 @@ def calculate_js_with_median(baseline, stream, median_origin="both", n_bins=5):
 
     js_distance = jensenshannon(normalized_baseline, normalized_stream)
     return js_distance
+
+
+# HELLINGER DISTANCE
+from scipy.linalg import norm
+
+_SQRT2 = np.sqrt(2)  # sqrt(2) with default precision np.float64
+
+def hellinger(p, q):
+    return norm(np.sqrt(p) - np.sqrt(q)) / _SQRT2
+
+def calculate_hellinger_with_dummy_bins(baseline, stream, n_bins):
+    normalized_baseline, normalized_stream = simple_binning(
+        baseline=baseline, stream=stream, n_bins=n_bins
+    )
+    return hellinger(normalized_baseline, normalized_stream)
+
+
+def calculate_hellinger_with_median(baseline, stream, median_origin="both", n_bins=5):
+    df_bins_baseline, df_bins_stream = median_binning(
+        baseline, stream, median_origin=median_origin, n_bins=n_bins
+    )
+
+    frequencies_baseline = df_bins_baseline.value_counts(normalize=True)[
+        df_bins_baseline.unique()
+    ]
+    frequencies_stream = df_bins_stream.value_counts(normalize=True)[
+        df_bins_stream.unique()
+    ]
+
+    all_categories = set(frequencies_baseline.index).union(frequencies_stream.index)
+    normalized_baseline = frequencies_baseline.reindex(all_categories, fill_value=0)
+    normalized_stream = frequencies_stream.reindex(all_categories, fill_value=0)
+
+    return hellinger(normalized_baseline, normalized_stream)

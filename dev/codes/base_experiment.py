@@ -13,12 +13,15 @@ from codes.binning import (
     calculate_kl_with_median,
     calculate_js_with_dummy_bins,
     calculate_js_with_median,
+    calculate_hellinger_with_dummy_bins,
+    calculate_hellinger_with_median,
 )
+
 
 from tqdm import tqdm
 
 # TODO: make the test types as an ENUM
-TEST_TYPES = ["ks", "kl_dummy", "kl_median", "js_dummy", "js_median"]
+TEST_TYPES = ["ks", "kl_dummy", "kl_median", "js_dummy", "js_median", "hellinger_dummy", "hellinger_median"]
 
 
 class BaseExperiment(ABC):
@@ -82,7 +85,7 @@ class BaseExperiment(ABC):
             raise ("Invalid test type!")
 
         if (
-            self.test_type.startswith("kl") or self.test_type.startswith("js")
+            self.test_type.startswith("kl") or self.test_type.startswith("js") or self.test_type.startswith("hellinger")
         ) and not self.n_bins:
             raise ("Test type is only available if n_bins is defined properly.")
 
@@ -200,6 +203,31 @@ class BaseExperiment(ABC):
             }
         elif self.test_type == "js_dummy":
             distance = calculate_js_with_dummy_bins(
+                baseline, stream, n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        
+        elif self.test_type == "hellinger_median":
+            distance = calculate_hellinger_with_median(
+                baseline, stream, median_origin=self.median_origin, n_bins=self.n_bins
+            )
+            return {
+                "attr": attr,
+                "start": start,
+                "end": end,
+                "original_start": df_stream["original_index"][start],
+                "original_end": df_stream["original_index"][end],
+                "distance": distance,
+            }
+        elif self.test_type == "hellinger_dummy":
+            distance = calculate_hellinger_with_dummy_bins(
                 baseline, stream, n_bins=self.n_bins
             )
             return {
