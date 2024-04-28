@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -16,12 +17,20 @@ class SyntheticExperiment(BaseExperiment):
             **kwargs,
         )
 
-        self.synthetic_generator = SyntheticData(**kwargs)
-        self.window_size = kwargs.get("window_size", False)
         self.visualize_stream = kwargs.get("visualize_stream", False)
 
+        self.synthetic_generator = SyntheticData(**kwargs)
+        self.window_size = kwargs.get("window_size", False)
+        self.baseline_size = kwargs.get("baseline_size", False)
+
+        # Baseline and window size definition
+        # TODO: review this for the dataset case
+        if not self.baseline_size:
+            raise Exception("Missing the baseline size to be used.")
+
         if not self.window_size:
-            raise Exception("Missing something...")
+            print("Window size not defined, will be set to baseline.")
+            self.window_size = self.baseline_size
 
         self.set_dataframes(**kwargs)
         self.set_test()
@@ -35,7 +44,9 @@ class SyntheticExperiment(BaseExperiment):
             if change_point < len(self.df_baseline):
                 change_points_dict["baseline"].append(change_point)
             else:
-                change_points_dict["stream"].append(change_point - len(self.df_baseline))
+                change_points_dict["stream"].append(
+                    change_point - len(self.df_baseline)
+                )
         self.change_points = change_points_dict
 
     def set_dataframes(self, **kwargs):
@@ -50,7 +61,7 @@ class SyntheticExperiment(BaseExperiment):
 
     def create_baseline(self):
         """Create a baseline stream dataframe for the experiment."""
-        self.baseline = self.stream[: self.window_size]
+        self.baseline = self.stream[: self.baseline_size]
         self.df_baseline = (
             pd.DataFrame(self.baseline, columns=["value"])
             .rename_axis("original_index")
@@ -60,7 +71,7 @@ class SyntheticExperiment(BaseExperiment):
     def create_stream(self):
         """Create a synthethic stream dataframe for the experiment."""
         self.df_stream = (
-            pd.DataFrame(self.stream[self.window_size :], columns=["value"])
+            pd.DataFrame(self.stream[self.baseline_size :], columns=["value"])
             .rename_axis("original_index")
             .reset_index()
         )
@@ -105,12 +116,14 @@ class SynthethicVisualizer:
         results_file = self.experiment.dataset_prefix + ".csv"
         metadata_file = self.experiment.dataset_prefix + "_metadata.json"
         plot_file = self.experiment.dataset_prefix + ".jpg"
-        return results_file, metadata_file, plot_file
+        binning_timeline_file = self.experiment.dataset_prefix + "_binning_timeline.gif"
+        return results_file, metadata_file, plot_file, binning_timeline_file
 
     def plot_result_values(self, **kwargs):
         """Plot the results for the given experiment."""
 
         index = "end"
+        displayfig = kwargs.get("displayfig", True)
         savefig = kwargs.get("savefig", False)
         attr = kwargs.get("attr", False)
 
@@ -123,7 +136,8 @@ class SynthethicVisualizer:
             )
             attr_list = self.experiment.desired_cols
 
-        csv_file, _, plot_file = self.fetch_experiment_filename()
+        csv_file, _, plot_file, _ = self.fetch_experiment_filename()
+
         df_analysis = pd.read_csv(csv_file)
 
         test_type = self.experiment.test_type
@@ -144,15 +158,15 @@ class SynthethicVisualizer:
             df_plot = df_analysis
 
         n_bins = kwargs.get("n_bins", False)
-        median_origin = kwargs.get("median_origin", False)
+        bins_origin = kwargs.get("bins_origin", False)
 
         if not n_bins:
             title = f"Distance for synthetic stream indexed by {index} - {attr} - Test type: {test_type}"
         else:
             title = f"Distance for synthetic stream indexed by {index} - {attr} - bins: {n_bins} - Test type: {test_type}"
 
-        if median_origin:
-            title = title + f" - Median Origin: {median_origin}"
+        if bins_origin:
+            title = title + f" - Median Origin: {bins_origin}"
 
         plt.clf()
         plt.title(title)
@@ -166,5 +180,7 @@ class SynthethicVisualizer:
 
         if savefig:
             plt.savefig(plot_file)
+            print(f"Plotted results on file: {plot_file}")
 
-        plt.show()
+        if displayfig:
+            plt.show()

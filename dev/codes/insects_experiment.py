@@ -23,6 +23,22 @@ class InsectsExperiment(DatasetExperiment):
         self.set_dataframes()
         self.set_test()
 
+        self.window_size = kwargs.get("window_size", None)
+        df_baseline_size = len(self.df_baseline)
+
+        if self.test_type == "ks":
+            df_baseline_size = len(self.df_baseline)
+            print(
+                f"Since this is a KS test, the window size will be set to the baseline dataframe size, which is: {df_baseline_size}"
+            )
+            self.window_size = df_baseline_size  # might need this for the insects case
+
+        if not self.window_size:
+            print(
+                f"Since no window size was passed, the window size size will be set to the baseline dataframe size, which is: {df_baseline_size}"
+            )
+            self.window_size = df_baseline_size
+
     def set_dataset(self, **kwargs):
         self.dataset = kwargs.get("dataset", None)
         if not self.dataset:
@@ -45,7 +61,7 @@ class InsectsExperiment(DatasetExperiment):
         if not self.stratified:
             baseline_dfs = [
                 self.total_df[self.total_df["class"] == species].iloc[
-                    : self.window_size,
+                    : self.baseline_window_size,
                 ]
                 for species in self.classes
             ]
@@ -87,8 +103,11 @@ class InsectsExperiment(DatasetExperiment):
         self.minimal_class = self.total_df["class"].value_counts().min()
 
     def set_window_size(self):
-        """Set the size of the windows used on the experiment."""
-        self.window_size = int(self.minimal_class * self.train_percentage)
+        """Set the size of the baseline window size used on the experiment."""
+        self.baseline_window_size = int(self.minimal_class * self.train_percentage)
+        self.metadata["Minimal class size"] = int(
+            self.minimal_class
+        )  # TODO LOOK AT THIS
 
     def set_test(self):
         """Set what else is needed for the test."""
@@ -160,6 +179,12 @@ class InsectsVisualizer:
         df_plot = df_analysis[(df_analysis["attr"].isin(attr_list))][
             [result_col, "attr", "start", "end"]
         ]
+
+        # talvez seja legal refatorar essa parte dos atributos aqui
+        # o experimento rodou para todos os atributos e salvou tudo em um CSV
+        # agora como acessamos aquele resultado e vamos plotando separadamente?
+        # talvez seja mais ideal utilizar dois tipos de config (uma para rodar os experimentos com todos atributos)
+        # outra config para passar apenas umas listas com o que queremos que sejam plotadas nas imagens
 
         dataset = kwargs.get("dataset", False)
 
