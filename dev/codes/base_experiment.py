@@ -9,16 +9,27 @@ from scipy import stats
 from multiprocessing import Pool
 
 from codes.binning import (
-    calculate_kl_with_dummy_bins,
-    calculate_kl_with_median,
-    calculate_js_with_dummy_bins,
-    calculate_js_with_median,
+    calculate_kl,
+    calculate_js,
+    calculate_hellinger,
 )
+
 
 from tqdm import tqdm
 
 # TODO: make the test types as an ENUM
-TEST_TYPES = ["ks", "kl_dummy", "kl_median", "js_dummy", "js_median"]
+TEST_TYPES = [
+    "ks",
+    "kl",
+    "js",
+    "hellinger",
+    # "kl_dummy",
+    # "kl_median",
+    # "js_dummy",
+    # "js_median",
+    # "hellinger_dummy",
+    # "hellinger_median",
+]
 
 
 class BaseExperiment(ABC):
@@ -44,6 +55,8 @@ class BaseExperiment(ABC):
         **kwargs,
     ) -> None:
 
+        self.kwargs = kwargs
+
         # Fetch init data for the test type and its possible variables
         self.test_type = kwargs.get("test_type", False)
         if not self.test_type:
@@ -57,8 +70,8 @@ class BaseExperiment(ABC):
 
         # TODO: validate the input with pydantic
         self.n_bins = kwargs.get("n_bins", False)
-
-        self.median_origin = kwargs.get("median_origin", False)
+        self.binning_type = kwargs.get("binning_type", False)
+        self.bins_origin = kwargs.get("bins_origin", False)
 
         # Validating the test inputs
         self.validate_test_params()
@@ -82,12 +95,16 @@ class BaseExperiment(ABC):
             raise ("Invalid test type!")
 
         if (
-            self.test_type.startswith("kl") or self.test_type.startswith("js")
-        ) and not self.n_bins:
-            raise ("Test type is only available if n_bins is defined properly.")
+            self.test_type.startswith("kl")
+            or self.test_type.startswith("js")
+            or self.test_type.startswith("hellinger")
+        ) and (not self.n_bins or not self.binning_type):
+            raise Exception(
+                "Test type is only available if binning type and n_bins is defined properly."
+            )
 
-        if "median" in self.test_type and not self.median_origin:
-            raise ("The median origin must be defined for this test type!")
+        if self.binning_type == "dummy":
+            print("For the dummy case, only the baseline bins are used.")
 
     def write_metadata(self, initial: bool = False):
         """Write experiment metadata on its data structure."""
@@ -129,6 +146,7 @@ class BaseExperiment(ABC):
         df_stream: pd.DataFrame,
         attr: str,
         window_size: int,
+        kwargs,
     ) -> dict:
         """Apply test on a window, to be used inside a multiprocessing pool.
 
@@ -162,10 +180,9 @@ class BaseExperiment(ABC):
                 "original_end": df_stream["original_index"][end],
                 "p_value": test_stat.pvalue,
             }
-        elif self.test_type == "kl_median":
-            distance = calculate_kl_with_median(
-                baseline, stream, median_origin=self.median_origin, n_bins=self.n_bins
-            )
+
+        elif self.test_type == "kl":
+            distance = calculate_kl(baseline, stream, **kwargs)
             return {
                 "attr": attr,
                 "start": start,
@@ -174,10 +191,9 @@ class BaseExperiment(ABC):
                 "original_end": df_stream["original_index"][end],
                 "distance": distance,
             }
-        elif self.test_type == "kl_dummy":
-            distance = calculate_kl_with_dummy_bins(
-                baseline, stream, n_bins=self.n_bins
-            )
+
+        elif self.test_type == "js":
+            distance = calculate_js(baseline, stream, **kwargs)
             return {
                 "attr": attr,
                 "start": start,
@@ -186,22 +202,9 @@ class BaseExperiment(ABC):
                 "original_end": df_stream["original_index"][end],
                 "distance": distance,
             }
-        elif self.test_type == "js_median":
-            distance = calculate_js_with_median(
-                baseline, stream, median_origin=self.median_origin, n_bins=self.n_bins
-            )
-            return {
-                "attr": attr,
-                "start": start,
-                "end": end,
-                "original_start": df_stream["original_index"][start],
-                "original_end": df_stream["original_index"][end],
-                "distance": distance,
-            }
-        elif self.test_type == "js_dummy":
-            distance = calculate_js_with_dummy_bins(
-                baseline, stream, n_bins=self.n_bins
-            )
+
+        elif self.test_type == "hellinger":
+            distance = calculate_hellinger(baseline, stream, **kwargs)
             return {
                 "attr": attr,
                 "start": start,
@@ -236,7 +239,7 @@ class BaseExperiment(ABC):
         """
 
         NUM_EL = len(df_stream[attr])
-        WINDOW_SIZE = len(df_baseline[attr])
+        WINDOW_SIZE = self.window_size
 
         if not batches:
             STARTS = list(range(NUM_EL - WINDOW_SIZE - 1))
@@ -259,6 +262,7 @@ class BaseExperiment(ABC):
                         repeat(df_stream),
                         repeat(attr),
                         repeat(WINDOW_SIZE),
+                        repeat(self.kwargs),
                     ),
                     total=len(STARTS),
                 ),
@@ -286,9 +290,9 @@ class BaseExperiment(ABC):
             self.metadata["execution_time"][0][attr] = elapsed_attr_time
             results.append(attr_results)
 
-        self.metadata["Class size"] = self.window_size
         self.metadata["Baseline size"] = self.df_baseline.shape[0]
         self.metadata["Stream size"] = self.df_stream.shape[0]
+        self.metadata["Test window size"] = self.window_size
         self.write_metadata()
 
         dataset_results = pd.concat(results)
