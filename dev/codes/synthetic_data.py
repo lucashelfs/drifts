@@ -32,15 +32,29 @@ from matplotlib import gridspec
 #             ax1.axvline(drift_detected, color="red")
 #     plt.show()
 
+## Check Table 3 with the most common Synthetic Datasets from
+# Lu, J., Liu, A., Dong, F., Gu, F., Gama, J., & Zhang, G. (2019).
+# Learning under Concept Drift: A Review. In IEEE Transactions on Knowledge and Data Engineering (Vol. 31, Issue 12, pp. 2346–2363).
+# IEEE Computer Society. https://doi.org/10.1109/TKDE.2018.2876857
+
 
 class SyntheticData:
     def __init__(self, **kwargs) -> None:
         self.distributions = kwargs.get("distributions", [])
         self.drifts = kwargs.get("drifts", None)
         self.create_stream()
+        self.set_change_points()
 
     def create_stream(self):
         self.stream = np.concatenate(tuple(self.distributions))
+
+    def set_change_points(self):
+        self.change_points = []
+        change_point = 0
+        for i in range(len(self.distributions) - 1):
+            distribution = self.distributions[i]
+            change_point += len(distribution)
+            self.change_points.append(change_point)
 
     def get_stream(self):
         return self.stream
