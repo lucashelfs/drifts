@@ -9,10 +9,12 @@ from codes.usp_stream_datasets import insects_datasets
 if __name__ == "__main__":
 
     n_bins = 5
-    dataset_name = "Incremental (bal.)"
-    attr = "Att31"
-    # window_size = 1000
-    window_size = None
+    # dataset_name = "Incremental (bal.)"
+    dataset_name = "Abrupt (bal.)"
+    # attr = "Att31"
+    attr = None
+    window_size = 1000
+    # window_size = None
     corrected = True
     test_type = "kl"
     binning_type = "dummy"
@@ -26,8 +28,7 @@ if __name__ == "__main__":
     # bins_origins = ["baseline"]
 
     # for dataset_name in insects_datasets.keys():
-
-    #     if dataset_name != "Incremental (bal.)":
+        # if dataset_name != "Out-of-control":
 
     dataset_filename_str = (
         dataset_name.lower()
@@ -62,45 +63,57 @@ if __name__ == "__main__":
         window_size=window_size,
     )
 
+    # # TODO: dummy way to fetch the number of bins
     ie = InsectsExperiment(**config)
+    window_size = ie.df_baseline.shape[0]
+    n_bins = int(np.sqrt(window_size))
+    print(results_folder, ie.df_baseline.shape[0], n_bins)
 
-    # Run the experiment
-    ie.run_test()
+    #  This should be drier but is just a test 
+    results_folder = (
+        os.getcwd()
+        + f"/results_insects/{dataset_filename_str}_{test_type}_{binning_type}_{n_bins}"
+    )
 
-    # # TODO: fetch the number of bins in a dynamic way
-    # # Set the experiment just for fetching the default window size
-    # default_dataset_window_size = ie.window_size
+    if window_size:
+        results_folder += f"_window_size_{window_size}"
+
+    if attr:
+        results_folder += f"_{attr}"
+
+    results_folder += "/"
+
 
     # n_bins_list = [x for x in range(5, int(np.sqrt(default_dataset_window_size)), 5)]
     # if int(np.sqrt(window_size)) not in n_bins_list:
     #     n_bins_list.append(int(np.sqrt(window_size)))
 
-    # # ALL THE FORS GO HERE
-    # # fetch new config and run...
+    # ALL THE FORS GO HERE
+    # fetch new config and run...
 
-    # config = dict(
-    #     batches=False,
-    #     dataset=dataset_name,
-    #     # attr=attr,
-    #     results_folder=results_folder,
-    #     test_type=test_type,
-    #     n_bins=n_bins,
-    #     binning_type=binning_type,
-    #     bins_origin=bins_origin,
-    #     window_size=window_size,
-    # )
+    config = dict(
+        batches=False,
+        dataset=dataset_name,
+        attr=attr,
+        results_folder=results_folder,
+        test_type=test_type,
+        n_bins=n_bins,
+        binning_type=binning_type,
+        bins_origin=bins_origin,
+        window_size=window_size,
+    )
 
     # # Set the experiment just for fetching the default window size
-    # ie = InsectsExperiment(**config)
+    ie = InsectsExperiment(**config)
 
     # # Run the experiment
-    # ie.run_test()
+    ie.run_test()
 
     # # Set a visualizer for the experiment result
-    # iv = InsectsVisualizer(ie)
+    iv = InsectsVisualizer(ie)
 
     # # # Plot the obtained results
-    # iv.plot_result_values(**config)
+    iv.plot_result_values(**config)
 
     # # Plot original data for the attr for example
     # iv.plot_original_data(**config)

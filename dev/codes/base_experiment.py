@@ -45,7 +45,7 @@ class BaseExperiment(ABC):
 
     """
 
-    NUMBER_OF_POOLS = 8
+    NUMBER_OF_POOLS = 16 # for the M3 mac - 16 cores
 
     dataset_prefix = None
     metadata = {}
