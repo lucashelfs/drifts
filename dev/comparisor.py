@@ -17,6 +17,8 @@ from dev.ddm import fetch_ksddm_drifts, fetch_hdddm_drifts, fetch_jsddm_drifts
 from dev.config import insects_datasets, load_insect_dataset
 from dev.ksddm_tester_dry import define_batches
 
+import matplotlib.ticker as ticker
+
 
 def run_prequential_naive_bayes(dataset="Abrupt (bal.)", batch_size=1000, batches_with_drift_list=None):
     reference_batch = 1
@@ -80,6 +82,11 @@ def run_prequential_naive_bayes(dataset="Abrupt (bal.)", batch_size=1000, batche
         X_batch = X[X.Batch == batch].iloc[:, :-1]
         Y_batch = Y[Y.Batch == batch].iloc[:, :-1].values.ravel()
 
+        # Test
+        y_pred = base_classifier.predict(X_batch)
+        batch_predictions.append(y_pred)
+
+        # Train or reset if drift
         if batches_with_drift_list is not None:
             if batch in drift_indexes:
                 reference = X_batch
@@ -90,9 +97,6 @@ def run_prequential_naive_bayes(dataset="Abrupt (bal.)", batch_size=1000, batche
                 base_classifier.partial_fit(X_batch, Y_batch)
         else:
             base_classifier.partial_fit(X_batch, Y_batch)
-
-        y_pred = base_classifier.predict(X_batch)
-        batch_predictions.append(y_pred)
 
     batch_predictions = [item for sublist in batch_predictions for item in sublist]
     return X, Y, batch_predictions
@@ -113,10 +117,10 @@ def run_test(dataset, batch_size=1000, plot_heatmaps=True):
     y_true = Y['class'].values
 
     results = {
-        'KS95_drifts': find_indexes(ks_drifts.tolist()),
-        'KS90_drifts': find_indexes(ks_90_drifts.tolist()),
-        'HD_drifts': find_indexes(hd_drifts.tolist()),
-        'JS_drifts': find_indexes(js_drifts.tolist())
+        'KS95': find_indexes(ks_drifts.tolist()),
+        'KS90': find_indexes(ks_90_drifts.tolist()),
+        'HD': find_indexes(hd_drifts.tolist()),
+        'JS': find_indexes(js_drifts.tolist())
     }
 
     metrics_results = {}
@@ -140,29 +144,43 @@ def run_test(dataset, batch_size=1000, plot_heatmaps=True):
 
         print(f"{name} - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, AUC: {roc_auc:.4f}")
 
-    return results, metrics_results
+    return results, metrics_results, X.shape[0]
 
 
 def plot_drift_points(drift_results, dataset, batch_size):
     os.makedirs(output_dir + f"/{dataset}/detected_drifts/", exist_ok=True)
-    plt.figure(figsize=(10, 6))
-    colors = {'KS95_drifts': 'r', 'KS90_drifts': 'g', 'HD_drifts': 'b', 'JS_drifts': 'm'}
+    plt.figure(figsize=(12, 8))
+    colors = {'KS95': 'r', 'KS90': 'g', 'HD': 'b', 'JS': 'm'}
 
     # Ensure all methods are on the Y-axis
-    methods = ['KS95_drifts', 'KS90_drifts', 'HD_drifts', 'JS_drifts']
+    methods = ['KS95', 'KS90', 'HD', 'JS']
     for method in methods:
         drifts = drift_results.get(method, [])
         plt.scatter(drifts, [method] * len(drifts), color=colors[method], label=method if len(drifts) > 0 else None,
                     s=50)
 
-    plt.xlabel('Batch Index')
-    plt.ylabel('Detection Method')
-    plt.title(f'Drift Points for {dataset} (Batch Size: {batch_size})')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(output_dir + f"/{dataset}/detected_drifts/", f'{dataset}_{batch_size}_drift_points.png'))
-    plt.close()
+    # Plot all change points
+    change_points = fetch_dataset_change_points(dataset, batch_size)
+    label_added = False
+    for cp in change_points:
+        if not label_added:
+            plt.axvline(x=cp, color='k', linestyle='--', linewidth=1, label='Change point')
+            label_added = True
+        else:
+            plt.axvline(x=cp, color='k', linestyle='--', linewidth=1)
 
+    plt.xlabel('Batch Index', fontsize=20)
+    # plt.ylabel('Detection Method', fontsize=14)
+    plt.title(f'Drift Points for {dataset} (Batch Size: {batch_size})', fontsize=20)
+    plt.legend(fontsize=15)
+    plt.grid(True)
+    plt.yticks(ticks=methods, labels=methods, fontsize=15)
+    plt.xticks(fontsize=15)
+
+    # Set integer ticks on the x-axis
+    plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    plt.savefig(os.path.join(output_dir + f"/{dataset}/detected_drifts/", f'{dataset}_{batch_size}_drift_points.png'), bbox_inches='tight')
+    plt.close()
 
 def plot_results(results, dataset, batch_sizes):
     os.makedirs(output_dir + f"/{dataset}/metrics/", exist_ok=True)
@@ -220,18 +238,18 @@ def plot_results(results, dataset, batch_sizes):
     plt.close()
 
 
-def save_results_to_csv(dataset, batch_size, drift_results, metrics_results, csv_file_path):
+def save_results_to_csv(dataset, batch_size, drift_results, metrics_results, num_batches, csv_file_path):
     # Create the data structure to be saved in CSV
     data = []
     for technique, metrics in metrics_results.items():
         if technique == 'Base':
             num_drifts = 0
         else:
-            num_drifts = len(drift_results[f"{technique}_drifts"])
+            num_drifts = len(drift_results[f"{technique}"])
 
         fpr, tpr, roc_auc = metrics['roc_curve']
-        fpr_str = ';'.join(map(str, fpr))
-        tpr_str = ';'.join(map(str, tpr))
+        # fpr_str = ';'.join(map(str, fpr))
+        # tpr_str = ';'.join(map(str, tpr))
 
         data.append({
             'dataset': dataset,
@@ -242,8 +260,7 @@ def save_results_to_csv(dataset, batch_size, drift_results, metrics_results, csv
             'recall': metrics['recall'],
             'f1': metrics['f1'],
             'num_drifts': num_drifts,
-            # 'fpr': fpr_str,
-            # 'tpr': tpr_str,
+            'num_batches': num_batches,  # Include the number of batches
             'auc': roc_auc
         })
 
@@ -272,9 +289,23 @@ def consolidate_csv_files(csv_file_paths, target_csv_file):
     print(f"Consolidated results saved to {target_csv_file}")
 
 
-def main():
+def fetch_dataset_change_points(dataset_name, batch_size):
+    # Fetch che batches where change points occur on the datasets
+    change_points = []
 
+    if dataset_name in insects_datasets.keys():
+        change_points = insects_datasets[dataset_name]["change_point"]
+
+    if dataset_name in common_datasets.keys():
+        change_points = common_datasets[dataset_name]["change_point"]
+
+    batches_with_change_points = [cp // batch_size for cp in change_points]
+    return batches_with_change_points
+
+
+def main():
     batch_sizes = [1000, 1500, 2000, 2500]
+    # datasets = ["magic"]
     datasets = ["MULTISTAGGER", "MULTISEA", "SEA", "STAGGER", "electricity", "magic"]
     for dataset in insects_datasets.keys():
         if dataset != "Out-of-control":
@@ -295,14 +326,15 @@ def main():
 
         for batch_size in batch_sizes:
             print(f"{dataset} - {batch_size}")
-            drift_results, test_results = run_test(dataset=dataset, batch_size=batch_size, plot_heatmaps=True)
+            drift_results, test_results, X_shape = run_test(dataset=dataset, batch_size=batch_size, plot_heatmaps=True)
+            num_batches = X_shape // batch_size  # Calculate the number of batches
             dataset_results[batch_size] = test_results
             plot_drift_points(drift_results, dataset, batch_size)
-            save_results_to_csv(dataset, batch_size, drift_results, test_results, csv_file_path)
+            save_results_to_csv(dataset, batch_size, drift_results, test_results, num_batches, csv_file_path)
             print()
 
         results[dataset] = dataset_results
-        plot_results(dataset_results, dataset, batch_sizes)
+        # plot_results(dataset_results, dataset, batch_sizes)
         csv_file_paths.append(csv_file_path)  # Add the CSV file path to the list
 
     # Consolidate all CSV files into a single CSV file
